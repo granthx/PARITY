@@ -19,7 +19,7 @@
 * **Deployment Ready:** Static build compatible with zero-config hosting on Vercel, Netlify, or GitHub Pages.
 * **Recorded Video Walkthrough:** Demonstrating the full end-to-end interactive dashboard, synthetic parameter manipulation, and empirical findings:
 
-![Screen Recording Walkthrough](results/walkthrough_demo.webp)
+![Interactive Walkthrough Demo](results/walkthrough_demo.gif)
 
 
 ---
