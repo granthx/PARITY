@@ -1,0 +1,23 @@
+{
+  "Condition_A_Matched": {
+    "mean_Delta": 49.4,
+    "std_Delta": 0.7999999999999999,
+    "t_stat": 123.5,
+    "p_value_paired": 2.5780635364395818e-08,
+    "wilcoxon_p_value": 0.0625,
+    "interpretation": "Positive Delta indicates simple feature learned earlier under matched signal."
+  },
+  "Condition_B_Complex_Dominant": {
+    "mean_Delta": -50.0,
+    "std_Delta": 0.0,
+    "t_stat": -Infinity,
+    "p_value_paired": 0.0,
+    "interpretation": "Negative Delta demonstrates inversion: complex feature learned earlier."
+  },
+  "Condition_Comparison_A_vs_B": {
+    "welch_t_stat": 248.50000000000003,
+    "p_value": 1.5732538161962025e-09,
+    "cohens_d": 157.16519722536847,
+    "interpretation": "Statistically significant delta shift confirms simplicity bias is not invariant."
+  }
+}
