@@ -21,6 +21,9 @@
 
 ![Interactive Walkthrough Demo](results/walkthrough_demo.gif)
 
+> [!TIP]
+> **Full-Length Video:** You can also view or download the [Full HD 1080p Walkthrough Video (MP4)](results/walkthrough_demo.mp4) or the high-resolution [WebP Animation](results/walkthrough_demo.webp).
+
 
 ---
 
