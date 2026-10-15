@@ -381,54 +381,7 @@ This study challenged the universal claim that neural networks unconditionally p
 
 ---
 
-## 12. Setup & Reproducibility Guide
-
-### Prerequisites
-* Python 3.10+ (Tested on Python 3.13)
-* Node.js v18+ (Optional, only for local web demo serving)
-
-### Installation
-```bash
-# Clone the repository
-git clone https://github.com/your-username/falsify-simplicity-bias.git
-cd falsify-simplicity-bias
-
-# Install Python dependencies
-pip install -r requirements.txt
-```
-
-### Reproducing All Experiments & Figures
-```bash
-# Step 1: Run the full multi-seed experiment suite across conditions A-E
-python src/run_experiments.py
-
-# Step 2: Compute statistical hypothesis tests and generate publication figures
-python src/analyze.py
-```
-* Raw results are stored in `results/raw_data/experiments_results.json`.
-* Publication figures are saved in `results/figures/`.
-
-### Running the Interactive Web Walkthrough Locally
-```bash
-# Launch a lightweight static HTTP server
-python -m http.server 8000 --directory web-demo
-```
-Open [http://localhost:8000](http://localhost:8000) in your browser.
-
----
-
-## 13. Submission Protocol Checklist
-
-| Item | Requirement (from College Society Protocol) | Status | Verification Link / Location |
-|---|---|---|---|
-| **01** | **Public GitHub Repository:** Clean chronological commits reflecting build progress; no single-dump commits. | **COMPLETED** | Repository initialized with modular chronological commits (`feat(ml)`, `feat(experiments)`, `results`, `feat(web)`, `docs`). |
-| **02** | **Comprehensive README:** Document architecture diagrams, setup instructions, trade-offs made, and security measures. | **COMPLETED** | Documented above in Sections 4, 8, 9, and 12 with Mermaid diagrams. |
-| **03** | **Hosted Demo / Walkthrough:** Provide a live link (Vercel/Netlify), shareable link, or walkthrough recording. | **COMPLETED** | Web demo located in [`web-demo/`](web-demo/); walkthrough recorded via automated browser subagent. |
-| **04** | **Official Form Submission:** Submit prior to 13 Oct 2026 at 11:59 PM IST. | **READY** | All deliverables packaged and ready for form entry. |
-
----
-
-## 14. References
+## 12. References
 
 1. **Shah, H., Tamuly, K., Raghunathan, A., Jain, P., & Netrapalli, P.** (2020). *The Pitfalls of Simplicity Bias in Neural Networks*. Advances in Neural Information Processing Systems (NeurIPS 2020), 33, 9573–9585. [arXiv:2006.07710](https://arxiv.org/abs/2006.07710)
 2. **Morwani, D., Khambhati, S., Varma, P., & Raghunathan, A.** (2023). *Simplicity Bias in 1-Hidden Layer Neural Networks*. Advances in Neural Information Processing Systems (NeurIPS 2023), 36. [NeurIPS Proceedings](https://neurips.cc)
