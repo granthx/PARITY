@@ -83,15 +83,15 @@ By isolating these variables into independent experimental knobs, we demonstrate
 graph TD
     A["Inductive Biases in Neural Networks"] --> B["Simplicity Bias in Representations"]
     A --> C["Spectral Bias in Optimization"]
-  <br>
+
     B --> D["Shah et al. (2020)<br/>The Pitfalls of Simplicity Bias"]
     B --> E["Morwani et al. (2023)<br/>Simplicity Bias in 1-HL Networks"]
     C --> F["Rahaman et al. (2019)<br/>Spectral Bias of Deep Networks"]
-  <br>
+
     D -.-> G["Critique: Confounded Signal Strength"]
     E -.-> H["Critique: Low-Rank Projection Assumptions"]
-    F -.-> I["Critique: Frequency != Structural Complexity"]
-  <br>
+    F -.-> I["Critique: Frequency vs. Structural Complexity"]
+
     G --> J["Our Work: The Falsification Challenge Suite"]
     H --> J
     I --> J
