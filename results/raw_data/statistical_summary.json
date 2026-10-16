@@ -1,23 +1,126 @@
 {
   "Condition_A_Matched": {
-    "mean_Delta": 49.4,
-    "std_Delta": 0.7999999999999999,
-    "t_stat": 123.5,
-    "p_value_paired": 2.5780635364395818e-08,
-    "wilcoxon_p_value": 0.0625,
-    "interpretation": "Positive Delta indicates simple feature learned earlier under matched signal."
+    "S_crossing_rate": 0.6,
+    "S_crossing_count": "3/5",
+    "S_observed_crossing_epochs": [
+      1,
+      1,
+      1
+    ],
+    "S_mean_observed_epoch": 1.0,
+    "S_censored_count": 2,
+    "C_crossing_rate": 0.0,
+    "C_crossing_count": "0/5",
+    "C_observed_crossing_epochs": [],
+    "C_mean_observed_epoch": null,
+    "C_censored_count": 5,
+    "censoring_note": "C did not cross tau=0.80 within 50 epochs in any run (T_C > 50). S crossed in 3/5 runs at epoch 1.",
+    "mean_final_acc_S": 0.7396,
+    "std_final_acc_S": 0.025679001365144803,
+    "mean_final_acc_C": 0.7035333333333333,
+    "std_final_acc_C": 0.031672455611215934,
+    "accuracy_difference_mean (S - C)": 0.0360666666666666,
+    "std_diff_S_minus_C": 0.056524527616090836,
+    "ci_95_diff": [
+      -0.03411780428970782,
+      0.10625113762304103
+    ],
+    "paired_t_stat_acc": 1.4267703205985633,
+    "paired_p_val_acc_twosided": 0.2268073112643512,
+    "paired_p_val_acc_greater": 0.1134036556321756,
+    "wilcoxon_p_val_acc": 0.3125,
+    "binary_crossing_tests": {
+      "pairing_description": "Observations paired by random model seed on identical data instance.",
+      "paired_mcnemar_exact_one_sided_p": 0.125,
+      "paired_mcnemar_exact_two_sided_p": 0.25,
+      "paired_mcnemar_cs_greater_p": 1.0,
+      "discordant_pairs": "S_only=3, C_only=0",
+      "unpaired_fisher_exact_one_sided_p": 0.08333333333333333,
+      "unpaired_fisher_exact_two_sided_p": 0.16666666666666666,
+      "contingency_table": [
+        [
+          3,
+          2
+        ],
+        [
+          0,
+          5
+        ]
+      ],
+      "significance_at_0_05": false
+    },
+    "early_dynamics_epoch_1": {
+      "mean_acc_S_ep1": 0.8304,
+      "std_acc_S_ep1": 0.060137065663920374,
+      "mean_acc_C_ep1": 0.6220666666666667,
+      "std_acc_C_ep1": 0.05116118320237195,
+      "mean_diff_ep1": 0.2083333333333334,
+      "std_diff_ep1": 0.11115354745176205,
+      "paired_t_stat_ep1": 4.191026791246792,
+      "paired_p_val_ep1": 0.013795101097279296
+    },
+    "statistical_conclusion": "Under matched signals, S crossed threshold in 3/5 runs vs 0/5 for C. Because observations are paired by model seed, an exact McNemar binomial test yields one-sided p = 0.1250 (two-sided p = 0.2500); an unpaired Fisher exact test yields one-sided p = 0.0833 (two-sided p = 0.1667). Neither binary test achieves statistical significance at alpha = 0.05 due to power constraints with N = 5. At epoch 1, S shows a statistically significant initial lead (Acc S = 83.04% vs Acc C = 62.21%, paired t(4) = 4.19, p = 0.0138), reflecting first-order gradient alignment before loss reduction."
   },
   "Condition_B_Complex_Dominant": {
-    "mean_Delta": -50.0,
-    "std_Delta": 0.0,
-    "t_stat": -Infinity,
-    "p_value_paired": 0.0,
-    "interpretation": "Negative Delta demonstrates inversion: complex feature learned earlier."
+    "S_crossing_rate": 0.0,
+    "S_crossing_count": "0/5",
+    "S_observed_crossing_epochs": [],
+    "S_censored_count": 5,
+    "C_crossing_rate": 1.0,
+    "C_crossing_count": "5/5",
+    "C_observed_crossing_epochs": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "C_mean_observed_epoch": 1.0,
+    "C_censored_count": 0,
+    "censoring_note": "S did not cross tau=0.80 within 50 epochs in any run (T_S > 50). C crossed at epoch 1 in all runs.",
+    "mean_final_acc_S": 0.508,
+    "std_final_acc_S": 0.010741922029547987,
+    "mean_final_acc_C": 0.9694666666666667,
+    "std_final_acc_C": 0.004845387268090882,
+    "accuracy_difference_mean (C - S)": 0.4614666666666667,
+    "paired_t_stat_acc": 78.41895622798502,
+    "paired_p_val_acc": 1.584879877998025e-07,
+    "wilcoxon_p_val_acc": 0.0625,
+    "binary_crossing_tests": {
+      "pairing_description": "Observations paired by random model seed on identical data instance.",
+      "paired_mcnemar_exact_one_sided_p": 1.0,
+      "paired_mcnemar_exact_two_sided_p": 0.0625,
+      "paired_mcnemar_cs_greater_p": 0.03125,
+      "discordant_pairs": "S_only=0, C_only=5",
+      "unpaired_fisher_exact_one_sided_p": 1.0,
+      "unpaired_fisher_exact_two_sided_p": 0.007936507936507938,
+      "contingency_table": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          0
+        ]
+      ],
+      "significance_at_0_05": false
+    },
+    "statistical_conclusion": "When complex signal quality dominates, learning order decisively inverts: C crossed at epoch 1 in 5/5 runs (100%), while S failed to cross in any run (0/5, T_S > 50). The paired McNemar exact test yields one-sided p = 0.03125 (statistically significant at alpha = 0.05). Final counterfactual accuracy heavily favors C (96.95% vs 50.80% chance level, paired t(4) = 78.42, p = 1.58e-07)."
   },
   "Condition_Comparison_A_vs_B": {
-    "welch_t_stat": 248.50000000000003,
-    "p_value": 1.5732538161962025e-09,
-    "cohens_d": 157.16519722536847,
-    "interpretation": "Statistically significant delta shift confirms simplicity bias is not invariant."
+    "unstandardized_effect_size_margin_shift": 0.4975333333333333,
+    "ci_95_margin_shift": [
+      0.4198763187049708,
+      0.5751903479616959
+    ],
+    "welch_t_stat": 19.16948290472765,
+    "welch_df": 4.432266035433376,
+    "welch_p_val": 1.962088096510632e-05,
+    "paired_t_stat_across_seeds": 17.788141800413197,
+    "paired_df": 4,
+    "paired_p_val": 5.8685885793231975e-05,
+    "note_on_reported_t": "The actual Welch two-sample test statistic is t = 19.17 (df = 4.43, p = 1.96e-05) and the paired test across matched seeds is t(4) = 17.79 (p = 5.87e-05). Any historical citation of 't(4) = 48.61' was unsupported.",
+    "interpretation": "Statistically significant reversal of feature reliance between Condition A and Condition B (+49.75% margin shift)."
   }
 }

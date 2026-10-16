@@ -1,0 +1,42 @@
+{
+  "Condition_A_Matched": {
+    "S_crossing_rate": 1.0,
+    "C_crossing_rate": 0.0,
+    "censoring_note": "C did not cross tau=0.80 within 50 epochs in any run (T_C > 50).",
+    "mean_T_S": 21.0,
+    "std_T_S": 24.49489742783178,
+    "mean_final_acc_S": 0.7396,
+    "std_final_acc_S": 0.02296799705870947,
+    "mean_final_acc_C": 0.7035333333333333,
+    "std_final_acc_C": 0.028328705504409392,
+    "accuracy_difference_mean (S - C)": 0.0360666666666666,
+    "paired_t_stat_acc": 1.4267703205985633,
+    "paired_p_val_acc": 0.2268073112643512,
+    "wilcoxon_p_val_acc": 0.3125,
+    "fisher_exact_p_val_crossing": 0.007936507936507938,
+    "interpretation": "Under matched signal quality, the network reliably prioritizes the linear feature."
+  },
+  "Condition_B_Complex_Dominant": {
+    "S_crossing_rate": 0.0,
+    "C_crossing_rate": 1.0,
+    "censoring_note": "S did not cross tau=0.80 within 50 epochs in any run (T_S > 50); C crossed at epoch 1 in all runs.",
+    "mean_T_C": 1.0,
+    "std_T_C": 0.0,
+    "mean_final_acc_S": 0.508,
+    "std_final_acc_S": 0.00960786714682872,
+    "mean_final_acc_C": 0.9694666666666667,
+    "std_final_acc_C": 0.004333846123505283,
+    "accuracy_difference_mean (C - S)": 0.46146666666666675,
+    "paired_t_stat_acc": 78.41895622798502,
+    "paired_p_val_acc": 1.584879877998025e-07,
+    "wilcoxon_p_val_acc": 0.0625,
+    "fisher_exact_p_val_crossing": 0.007936507936507938,
+    "interpretation": "When complex signal quality dominates, learning order completely inverts from epoch 1."
+  },
+  "Condition_Comparison_A_vs_B": {
+    "welch_t_stat_accuracy_diff": 19.16948290472765,
+    "p_val_accuracy_diff": 1.962088096510632e-05,
+    "unstandardized_effect_size": 0.4975333333333333,
+    "interpretation": "Statistically significant reversal of feature reliance between Condition A and Condition B."
+  }
+}
