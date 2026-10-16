@@ -1,79 +1,230 @@
 /**
- * app.js - Interactive Research Paper Walkthrough & Live Experiment Explorer
- * Rock-solid live simulator and multi-condition empirical verification.
+ * app.js - PARITY Empirical Research Dashboard & Walkthrough
+ * Full Frontend-Backend Synchronization & Modern Visualization Engine
+ *
+ * Synchronized with authoritative backend outputs:
+ * - Corrected Protocol: Validation-monitored (val_d, N=600, tau=0.80), terminal test on test_d (N=600)
+ * - Historical Protocol: Test-monitored (test_d, N=600)
  */
 
-// Initialize with BUILTIN_EXPERIMENTAL_DATA from data.js
-let EXPERIMENTAL_DATA = (typeof BUILTIN_EXPERIMENTAL_DATA !== 'undefined') ? BUILTIN_EXPERIMENTAL_DATA : null;
-let currentConditionKey = "Condition_A";
-let currentSeedFilter = "all"; // 'all' or "101", "102", ...
+// Active State
+let currentProtocol = 'corrected'; // 'corrected' | 'historical'
+let currentConditionKey = 'Condition_A';
+let currentSeedFilter = 'all'; // 'all' | '101' | '102' | '103' | '104' | '105'
 
+// In-Memory Data Stores
+let DATA_CORRECTED = (typeof BUILTIN_CORRECTED_DATA !== 'undefined') ? BUILTIN_CORRECTED_DATA : null;
+let STATS_CORRECTED = (typeof BUILTIN_CORRECTED_STATS !== 'undefined') ? BUILTIN_CORRECTED_STATS : null;
+let DATA_HISTORICAL = (typeof BUILTIN_HISTORICAL_DATA !== 'undefined') ? BUILTIN_HISTORICAL_DATA : null;
+let STATS_HISTORICAL = (typeof BUILTIN_HISTORICAL_STATS !== 'undefined') ? BUILTIN_HISTORICAL_STATS : null;
+
+// Active Pointers
+let EXPERIMENTAL_DATA = DATA_CORRECTED;
+let STATISTICAL_SUMMARY = STATS_CORRECTED;
+
+// Charts
 let resultsChart = null;
 let simChart = null;
+let simAnimationTimer = null;
+let isSimulationRunning = false;
 
+// Condition Metadata & Academic Annotations
 const CONDITION_METADATA = {
   Condition_A: {
+    id: "Condition_A",
     title: "Condition A: Matched Baseline (eta_S = 0.05, eta_C = 0.05)",
     badge: "Matched Signals",
-    pVal: "p = 2.58e-08 (H1 Supported)",
-    interpretation: "Under strictly matched Bayes predictive strengths (both ceilings = 95%), the model reliably acquires the simple linear feature in epochs 1-3, maintaining high joint accuracy without requiring nonlinear feature discovery. Simplicity bias is clearly observed under signal parity."
+    category: "Primary Benchmark",
+    config: "eta_S = 0.05, eta_C = 0.05 | StandardMLP | AdamW (lr=0.01)",
+    desc: "Strictly matched Bayes optimal predictive ceilings (both 95.0%). Evaluates whether neural networks preferentially acquire simpler linear features under equal predictive capacity."
   },
   Condition_B: {
-    title: "Condition B: Complex Dominance (eta_S = 0.25, eta_C = 0.01) [FALSIFICATION PROOF]",
-    badge: "Falsification Boundary",
-    pVal: "p < 1.0e-09 (Falsification Inversion)",
-    interpretation: "CRITICAL FINDING: When the nonlinear feature carries superior predictive signal (99% ceiling vs 75%), the learning order completely inverts! The network learns C at epoch 1 and entirely ignores S. Simplicity bias is NOT invariant to signal strength."
+    id: "Condition_B",
+    title: "Condition B: Complex Dominance (eta_S = 0.25, eta_C = 0.01) [Falsification Inversion]",
+    badge: "Falsification Proof",
+    category: "Signal Inversion",
+    config: "eta_S = 0.25, eta_C = 0.01 | StandardMLP | AdamW (lr=0.01)",
+    desc: "Complex feature C carries cleaner predictive information (99.0% Bayes ceiling vs 75.0% for S). Falsifies unconditional simplicity bias by demonstrating complete inversion of acquisition order."
   },
   Condition_C: {
-    title: "Condition C: Simple Dominance (eta_S = 0.01, eta_C = 0.25)",
+    id: "Condition_C",
+    title: "Condition C: Simple Dominance (eta_S = 0.01, eta_C = 0.25) [Positive Control]",
     badge: "Positive Control",
-    pVal: "p < 1.0e-09 (Positive Control)",
-    interpretation: "Positive control confirming that when the linear feature possesses strong signal quality (99% ceiling) while C is noisy (75%), the network exclusively exploits S, reinforcing the dominance of predictive signal quality."
-  },
-  Condition_D: {
-    title: "Condition D: Optimization Modulation with SGD (eta_S=0.05, eta_C=0.05)",
-    badge: "SGD vs AdamW",
-    pVal: "p = 1.12e-08 (Optimization Barrier)",
-    interpretation: "Under standard SGD with momentum (lr=0.02), gradient descent experiences greater difficulty escaping the flat curvature of the XOR coordinate, locking into S early and suppressing C development."
+    category: "Signal Parity Control",
+    config: "eta_S = 0.01, eta_C = 0.25 | StandardMLP | AdamW (lr=0.01)",
+    desc: "Linear feature S carries superior predictive quality (99.0% Bayes ceiling vs 75.0% for C). The network almost exclusively prioritizes S."
   },
   Condition_D_SGD: {
-    title: "Condition D: Optimization Modulation with SGD (eta_S=0.05, eta_C=0.05)",
+    id: "Condition_D_SGD",
+    title: "Condition D: Optimization Ablation with Momentum SGD (eta_S = 0.05, eta_C = 0.05)",
     badge: "SGD vs AdamW",
-    pVal: "p = 1.12e-08 (Optimization Barrier)",
-    interpretation: "Under standard SGD with momentum (lr=0.02), gradient descent experiences greater difficulty escaping the flat curvature of the XOR coordinate, locking into S early and suppressing C development."
+    category: "Optimization Dynamics",
+    config: "eta_S = 0.05, eta_C = 0.05 | StandardMLP | SGD (lr=0.02, momentum=0.9)",
+    desc: "Under non-adaptive SGD with momentum, gradient descent struggles to escape the flat saddle around the XOR coordinate, locking into linear feature S and suppressing complex feature acquisition."
   },
-  Condition_E: {
-    title: "Condition E: Deep Architecture Ablation (DeepMLP 4-Layers)",
-    badge: "Depth Expressivity",
-    pVal: "p = 0.0004 (Depth Acceleration)",
-    interpretation: "Increased network depth (4 layers) accelerated nonlinear manifold discovery, allowing Seed 105 to cross tau=0.80 at epoch 33. Feature reliance shifted from linear dominance (53%) toward nonlinear interaction parity (54.8%)."
+  Condition_E1_Deep: {
+    id: "Condition_E1_Deep",
+    title: "Condition E1: Depth Expressivity Ablation (DeepMLP 4-Layers)",
+    badge: "4-Layer DeepMLP",
+    category: "Architecture Ablation",
+    config: "eta_S = 0.05, eta_C = 0.05 | DeepMLP (4 hidden layers, 13,186 params) | AdamW",
+    desc: "Increased network depth accelerates nonlinear composition. Seed 103 crosses at epoch 8 and Seed 102 crosses at epoch 13 (mean observed 10.5 epochs; 3/5 runs right-censored at epoch 50)."
   },
-  Condition_E_Deep: {
-    title: "Condition E: Deep Architecture Ablation (DeepMLP 4-Layers)",
-    badge: "Depth Expressivity",
-    pVal: "p = 0.0004 (Depth Acceleration)",
-    interpretation: "Increased network depth (4 layers) accelerated nonlinear manifold discovery, allowing Seed 105 to cross tau=0.80 at epoch 33. Feature reliance shifted from linear dominance (53%) toward nonlinear interaction parity (54.8%)."
-  },
-  Condition_E_ResMLP: {
-    title: "Condition E: Residual Architecture Ablation (ResMLP)",
-    badge: "Skip Connections",
-    pVal: "p = 1.84e-08 (Skip Highway)",
-    interpretation: "Residual skip connections maintain direct gradient highways to early layers, providing stable convergence while maintaining similar simplicity prioritization under matched signal conditions."
+  Condition_E2_ResMLP: {
+    id: "Condition_E2_ResMLP",
+    title: "Condition E2: Residual Skip Highway Ablation (ResMLP)",
+    badge: "Residual Skips",
+    category: "Architecture Ablation",
+    config: "eta_S = 0.05, eta_C = 0.05 | ResMLP (Skip connections, 17,346 params) | AdamW",
+    desc: "Residual skip connections preserve direct gradient highways to early layers, stabilizing optimization dynamics while retaining simplicity prioritization under matched signal conditions."
   }
 };
 
-// Normalize condition key alias
+// Aliases for compatibility
+const CONDITION_ALIASES = {
+  "Condition_D": "Condition_D_SGD",
+  "Condition_E": "Condition_E1_Deep",
+  "Condition_E_Deep": "Condition_E1_Deep",
+  "Condition_E_ResMLP": "Condition_E2_ResMLP"
+};
+
 function resolveConditionKey(key) {
-  if (!EXPERIMENTAL_DATA) return key;
-  if (key === "Condition_D" && EXPERIMENTAL_DATA.conditions["Condition_D_SGD"]) return "Condition_D_SGD";
-  if (key === "Condition_E" && EXPERIMENTAL_DATA.conditions["Condition_E_Deep"]) return "Condition_E_Deep";
-  if (EXPERIMENTAL_DATA.conditions[key]) return key;
-  if (key === "Condition_D_SGD" && EXPERIMENTAL_DATA.conditions["Condition_D"]) return "Condition_D";
-  if (key === "Condition_E_Deep" && EXPERIMENTAL_DATA.conditions["Condition_E"]) return "Condition_E";
+  if (CONDITION_ALIASES[key]) return CONDITION_ALIASES[key];
+  if (EXPERIMENTAL_DATA && EXPERIMENTAL_DATA.conditions) {
+    if (EXPERIMENTAL_DATA.conditions[key]) return key;
+    if (key === "Condition_D" && EXPERIMENTAL_DATA.conditions["Condition_D_SGD"]) return "Condition_D_SGD";
+    if (key === "Condition_E" && EXPERIMENTAL_DATA.conditions["Condition_E1_Deep"]) return "Condition_E1_Deep";
+    if (key === "Condition_E_Deep" && EXPERIMENTAL_DATA.conditions["Condition_E1_Deep"]) return "Condition_E1_Deep";
+    if (key === "Condition_E_ResMLP" && EXPERIMENTAL_DATA.conditions["Condition_E2_ResMLP"]) return "Condition_E2_ResMLP";
+  }
   return key;
 }
 
-// Extract chart curves based on condition and active seed filter
+/**
+ * Async Protocol Data Loader
+ * Attempts live fetch from backend JSON files, falling back to embedded constants.
+ */
+async function loadProtocolData(protocolName) {
+  currentProtocol = protocolName;
+
+  const dataUrl = protocolName === 'corrected'
+    ? 'results/raw_data/corrected_protocol/experiments_results_corrected.json'
+    : 'results/raw_data/historical_run/experiments_results_historical_test_monitored.json';
+
+  const statsUrl = protocolName === 'corrected'
+    ? 'results/raw_data/corrected_protocol/statistical_summary_corrected.json'
+    : 'results/raw_data/historical_run/statistical_summary_historical_test_monitored.json';
+
+  try {
+    const [dataResp, statsResp] = await Promise.all([
+      fetch(dataUrl, { cache: 'no-store' }),
+      fetch(statsUrl, { cache: 'no-store' })
+    ]);
+
+    if (dataResp.ok && statsResp.ok) {
+      const dataJson = await dataResp.json();
+      const statsJson = await statsResp.json();
+      if (protocolName === 'corrected') {
+        DATA_CORRECTED = dataJson;
+        STATS_CORRECTED = statsJson;
+      } else {
+        DATA_HISTORICAL = dataJson;
+        STATS_HISTORICAL = statsJson;
+      }
+    }
+  } catch (e) {
+    console.info(`[PARITY] Local fetch unavailable or file:// protocol in use. Utilizing high-fidelity embedded ${protocolName} bundle.`);
+  }
+
+  // Set active references
+  if (protocolName === 'corrected') {
+    EXPERIMENTAL_DATA = DATA_CORRECTED;
+    STATISTICAL_SUMMARY = STATS_CORRECTED;
+  } else {
+    EXPERIMENTAL_DATA = DATA_HISTORICAL;
+    STATISTICAL_SUMMARY = STATS_HISTORICAL;
+  }
+
+  updateProtocolUI();
+}
+
+/**
+ * Protocol Switcher Handler
+ */
+function switchProtocol(protocolName) {
+  if (protocolName === currentProtocol && EXPERIMENTAL_DATA) return;
+
+  const btnCorrected = document.getElementById('btn-proto-corrected');
+  const btnHistorical = document.getElementById('btn-proto-historical');
+
+  if (protocolName === 'corrected') {
+    if (btnCorrected) btnCorrected.classList.add('active');
+    if (btnHistorical) btnHistorical.classList.remove('active');
+  } else {
+    if (btnHistorical) btnHistorical.classList.add('active');
+    if (btnCorrected) btnCorrected.classList.remove('active');
+  }
+
+  loadProtocolData(protocolName).then(() => {
+    updateConditionView(currentConditionKey);
+    updateInspectorViews();
+    updateGalleryImages();
+  });
+}
+
+/**
+ * Update Protocol Control Bar & Metadata Badges
+ */
+function updateProtocolUI() {
+  const badgeMonitor = document.getElementById('proto-badge-monitor');
+  const badgeEval = document.getElementById('proto-badge-eval');
+  const badgeThreshold = document.getElementById('proto-badge-threshold');
+  const badgeSource = document.getElementById('proto-badge-source');
+
+  if (currentProtocol === 'corrected') {
+    if (badgeMonitor) badgeMonitor.textContent = 'Monitoring: val_d (N=600, Zero-Leakage)';
+    if (badgeEval) badgeEval.textContent = 'Held-Out Test: test_d (N=600)';
+    if (badgeThreshold) badgeThreshold.textContent = 'Threshold: τ = 0.80 on val_d';
+    if (badgeSource) badgeSource.textContent = 'Source: results/raw_data/corrected_protocol/';
+  } else {
+    if (badgeMonitor) badgeMonitor.textContent = 'Monitoring: test_d (N=600, Historical Leakage)';
+    if (badgeEval) badgeEval.textContent = 'Evaluation: test_d (Simultaneous)';
+    if (badgeThreshold) badgeThreshold.textContent = 'Threshold: τ = 0.80 on test_d';
+    if (badgeSource) badgeSource.textContent = 'Source: results/raw_data/historical_run/';
+  }
+}
+
+/**
+ * Update Figure Gallery Images According to Active Protocol
+ */
+function updateGalleryImages() {
+  const prefix = currentProtocol === 'corrected'
+    ? 'results/figures/'
+    : 'results/figures/historical_run/';
+
+  const img1 = document.getElementById('gallery-img-1');
+  const img2 = document.getElementById('gallery-img-2');
+  const img3 = document.getElementById('gallery-img-3');
+  const img4 = document.getElementById('gallery-img-4');
+  const img5 = document.getElementById('gallery-img-5');
+
+  if (img1) img1.src = `${prefix}fig1_learning_dynamics_matched.png?v=${Date.now()}`;
+  if (img2) img2.src = `${prefix}fig2_falsification_signal_dominance.png?v=${Date.now()}`;
+  if (img3) img3.src = `${prefix}fig3_reliance_heatmaps.png?v=${Date.now()}`;
+  if (img4) img4.src = `${prefix}fig4_optimizer_architecture_ablation.png?v=${Date.now()}`;
+  if (img5) img5.src = `${prefix}fig5_statistical_summary.png?v=${Date.now()}`;
+
+  const badgeProtocolGal = document.getElementById('gallery-protocol-label');
+  if (badgeProtocolGal) {
+    badgeProtocolGal.textContent = currentProtocol === 'corrected'
+      ? 'Publication Figures: Corrected Protocol (val_d Monitored)'
+      : 'Archived Figures: Historical Protocol (test_d Monitored)';
+  }
+}
+
+/**
+ * Extract Learning Dynamics Curves
+ */
 function getActiveCurves(condKey, seedFilter) {
   const resolved = resolveConditionKey(condKey);
   if (!EXPERIMENTAL_DATA || !EXPERIMENTAL_DATA.conditions || !EXPERIMENTAL_DATA.conditions[resolved]) {
@@ -81,10 +232,12 @@ function getActiveCurves(condKey, seedFilter) {
   }
   const cond = EXPERIMENTAL_DATA.conditions[resolved];
   const runs = cond.runs;
-  const numEpochs = runs[0].joint_curve ? runs[0].joint_curve.length : runs[0].dynamics.length;
+  if (!runs || runs.length === 0) return null;
+
+  const numEpochs = runs[0].dynamics ? runs[0].dynamics.length : 50;
   const epochs = Array.from({ length: numEpochs }, (_, i) => i + 1);
 
-  if (seedFilter === "all") {
+  if (seedFilter === 'all') {
     const joint = [];
     const sOnly = [];
     const cOnly = [];
@@ -93,38 +246,52 @@ function getActiveCurves(condKey, seedFilter) {
     for (let ep = 0; ep < numEpochs; ep++) {
       let sumJ = 0, sumS = 0, sumC = 0, sumN = 0;
       runs.forEach(r => {
-        if (r.joint_curve) {
-          sumJ += r.joint_curve[ep];
-          sumS += r.s_curve[ep];
-          sumC += r.c_curve[ep];
-          sumN += r.n_curve[ep];
-        } else {
+        if (r.dynamics && r.dynamics[ep]) {
           sumJ += r.dynamics[ep].acc_joint;
           sumS += r.dynamics[ep].acc_s_only;
           sumC += r.dynamics[ep].acc_c_only;
           sumN += r.dynamics[ep].acc_n_only;
+        } else if (r.joint_curve) {
+          sumJ += r.joint_curve[ep];
+          sumS += r.s_curve[ep];
+          sumC += r.c_curve[ep];
+          sumN += r.n_curve[ep];
         }
       });
-      const n = runs.length;
-      joint.push(Number((sumJ / n).toFixed(4)));
-      sOnly.push(Number((sumS / n).toFixed(4)));
-      cOnly.push(Number((sumC / n).toFixed(4)));
-      nOnly.push(Number((sumN / n).toFixed(4)));
+      joint.push(sumJ / runs.length);
+      sOnly.push(sumS / runs.length);
+      cOnly.push(sumC / runs.length);
+      nOnly.push(sumN / runs.length);
     }
-
     return { epochs, joint, sOnly, cOnly, noise: nOnly };
   } else {
     const targetSeed = parseInt(seedFilter, 10);
     const run = runs.find(r => r.seed === targetSeed) || runs[0];
-    const joint = run.joint_curve || run.dynamics.map(d => d.acc_joint);
-    const sOnly = run.s_curve || run.dynamics.map(d => d.acc_s_only);
-    const cOnly = run.c_curve || run.dynamics.map(d => d.acc_c_only);
-    const noise = run.n_curve || run.dynamics.map(d => d.acc_n_only);
-    return { epochs, joint, sOnly, cOnly, noise };
+    const joint = [];
+    const sOnly = [];
+    const cOnly = [];
+    const nOnly = [];
+
+    for (let ep = 0; ep < numEpochs; ep++) {
+      if (run.dynamics && run.dynamics[ep]) {
+        joint.push(run.dynamics[ep].acc_joint);
+        sOnly.push(run.dynamics[ep].acc_s_only);
+        cOnly.push(run.dynamics[ep].acc_c_only);
+        nOnly.push(run.dynamics[ep].acc_n_only);
+      } else if (run.joint_curve) {
+        joint.push(run.joint_curve[ep]);
+        sOnly.push(run.s_curve[ep]);
+        cOnly.push(run.c_curve[ep]);
+        nOnly.push(run.n_curve[ep]);
+      }
+    }
+    return { epochs, joint, sOnly, cOnly, noise: nOnly };
   }
 }
 
-// Initialize Main Empirical Results Chart
+/**
+ * Initialize Empirical Dynamics Chart
+ */
 function initResultsChart() {
   const canvas = document.getElementById('main-results-chart');
   if (!canvas) return;
@@ -136,19 +303,19 @@ function initResultsChart() {
       labels: Array.from({ length: 50 }, (_, i) => i + 1),
       datasets: [
         {
-          label: 'Joint Input',
+          label: 'Joint Input [S + C + N]',
           data: [],
           borderColor: '#f8fafc',
-          backgroundColor: 'rgba(248, 250, 252, 0.05)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderWidth: 2.5,
           tension: 0.15,
           pointRadius: 0
         },
         {
-          label: 'S-only (Linear)',
+          label: 'S-only (Linear Coordinate)',
           data: [],
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.08)',
           borderWidth: 2.2,
           tension: 0.15,
           pointRadius: 0
@@ -156,8 +323,8 @@ function initResultsChart() {
         {
           label: 'C-only (Nonlinear XOR)',
           data: [],
-          borderColor: '#ef4444',
-          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          borderColor: '#f43f5e',
+          backgroundColor: 'rgba(244, 63, 94, 0.08)',
           borderWidth: 2.2,
           tension: 0.15,
           pointRadius: 0
@@ -175,28 +342,38 @@ function initResultsChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 300 },
+      animation: { duration: 250 },
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
-          mode: 'index',
-          intersect: false,
-          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
           titleColor: '#f8fafc',
-          bodyColor: '#cbd5e1'
+          bodyColor: '#cbd5e1',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(1)}%`;
+            }
+          }
         }
       },
       scales: {
         x: {
-          title: { display: true, text: 'Training Epoch', color: '#94a3b8', font: { size: 11, weight: 'bold' } },
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          title: { display: true, text: 'Training Epoch', color: '#94a3b8', font: { size: 11, weight: '600' } },
+          grid: { color: 'rgba(255, 255, 255, 0.04)' },
           ticks: { color: '#94a3b8' }
         },
         y: {
           min: 0.45,
           max: 1.0,
-          title: { display: true, text: 'Counterfactual Accuracy', color: '#94a3b8', font: { size: 11, weight: 'bold' } },
-          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          title: { display: true, text: 'Counterfactual Generalization Accuracy', color: '#94a3b8', font: { size: 11, weight: '600' } },
+          grid: { color: 'rgba(255, 255, 255, 0.04)' },
           ticks: {
             color: '#94a3b8',
             callback: value => (value * 100).toFixed(0) + '%'
@@ -207,7 +384,500 @@ function initResultsChart() {
   });
 }
 
-// Initialize Live Simulation Chart
+/**
+ * Update the Condition View: Metrics, Charts, Statistics, and Seed Table
+ */
+function updateConditionView(condKey) {
+  const resolved = resolveConditionKey(condKey);
+  currentConditionKey = resolved;
+  const meta = CONDITION_METADATA[resolved] || {
+    id: resolved,
+    title: resolved,
+    badge: "Verified",
+    desc: "Empirical condition run."
+  };
+
+  // Header Elements
+  const chartTitle = document.getElementById('chart-condition-title');
+  const badgeCond = document.getElementById('badge-stat-cond');
+  const statInterp = document.getElementById('stat-interpretation');
+
+  if (chartTitle) {
+    chartTitle.textContent = `${meta.title} ${currentSeedFilter === 'all' ? '(Mean across 5 seeds)' : `(Seed ${currentSeedFilter})`}`;
+  }
+  if (badgeCond) badgeCond.textContent = meta.badge;
+
+  if (!EXPERIMENTAL_DATA || !EXPERIMENTAL_DATA.conditions || !EXPERIMENTAL_DATA.conditions[resolved]) {
+    return;
+  }
+
+  const cond = EXPERIMENTAL_DATA.conditions[resolved];
+  const summary = cond.summary;
+  const runs = cond.runs || [];
+
+  // 1. Binary Acquisition & Threshold Crossing Information
+  const statCrossingS = document.getElementById('stat-crossing-s');
+  const statCrossingC = document.getElementById('stat-crossing-c');
+  const statCensoringNote = document.getElementById('stat-censoring-note');
+
+  const sCount = summary.S_crossing_count || `${runs.filter(r => r.S_acquisition && r.S_acquisition.crossed_threshold).length}/${runs.length}`;
+  const cCount = summary.C_crossing_count || `${runs.filter(r => r.C_acquisition && r.C_acquisition.crossed_threshold).length}/${runs.length}`;
+
+  const sObs = summary.S_observed_crossing_epochs || [];
+  const cObs = summary.C_observed_crossing_epochs || [];
+  const sCens = summary.S_censored_count !== undefined ? summary.S_censored_count : runs.length - sObs.length;
+  const cCens = summary.C_censored_count !== undefined ? summary.C_censored_count : runs.length - cObs.length;
+
+  const sMeanStr = (summary.S_mean_observed_epoch !== null && summary.S_mean_observed_epoch !== undefined)
+    ? `${summary.S_mean_observed_epoch.toFixed(1)} ± ${summary.S_std_observed_epoch.toFixed(1)} ep`
+    : `None observed`;
+
+  const cMeanStr = (summary.C_mean_observed_epoch !== null && summary.C_mean_observed_epoch !== undefined)
+    ? `${summary.C_mean_observed_epoch.toFixed(1)} ± ${summary.C_std_observed_epoch.toFixed(1)} ep`
+    : `None observed`;
+
+  if (statCrossingS) {
+    statCrossingS.innerHTML = `<strong>${sCount}</strong> crossed <span class="stat-sub-label">(obs: [${sObs.join(', ')}], mean: ${sMeanStr}, ${sCens}/${runs.length} censored)</span>`;
+  }
+
+  if (statCrossingC) {
+    statCrossingC.innerHTML = `<strong>${cCount}</strong> crossed <span class="stat-sub-label">(obs: [${cObs.join(', ')}], mean: ${cMeanStr}, ${cCens}/${runs.length} censored)</span>`;
+  }
+
+  if (statCensoringNote) {
+    if (sCens > 0 || cCens > 0) {
+      statCensoringNote.textContent = `Right-censoring: Uncrossed runs (>50 epochs) are strictly excluded from observed time arithmetic; non-crossings are never averaged as epoch 51.`;
+    } else {
+      statCensoringNote.textContent = `Zero censoring: All ${runs.length} paired runs crossed the threshold within the 50-epoch window.`;
+    }
+  }
+
+  // 2. Exact McNemar Statistical Tests
+  const statMcnemarTwo = document.getElementById('stat-mcnemar-two');
+  const statMcnemarDir = document.getElementById('stat-mcnemar-dir');
+  const badgeMcnemar = document.getElementById('badge-mcnemar-sig');
+
+  let statsSection = null;
+  if (STATISTICAL_SUMMARY) {
+    if (resolved === 'Condition_A') statsSection = STATISTICAL_SUMMARY.Condition_A_Matched;
+    else if (resolved === 'Condition_B') statsSection = STATISTICAL_SUMMARY.Condition_B_Complex_Dominant;
+  }
+
+  if (statsSection && statsSection.binary_crossing_tests) {
+    const bTest = statsSection.binary_crossing_tests;
+    const pTwo = bTest.primary_two_sided_p;
+    const isSigTwo = bTest.primary_significance_at_0_05;
+
+    if (statMcnemarTwo) {
+      statMcnemarTwo.textContent = `Primary exact two-sided p = ${pTwo.toFixed(4)}`;
+    }
+
+    if (badgeMcnemar) {
+      if (isSigTwo) {
+        badgeMcnemar.className = 'badge-pill badge-success';
+        badgeMcnemar.textContent = 'p < 0.05 (Significant)';
+      } else {
+        badgeMcnemar.className = 'badge-pill badge-neutral';
+        badgeMcnemar.textContent = 'p = 0.0625 (NS at α=0.05, discrete N=5 limit)';
+      }
+    }
+
+    if (statMcnemarDir) {
+      if (resolved === 'Condition_A') {
+        const dirP = bTest.supplementary_directional_tests ? bTest.supplementary_directional_tests.s_greater_c.p_value : 0.03125;
+        statMcnemarDir.textContent = `Supplementary directional (S > C): exact p = ${dirP.toFixed(5)} (exploratory one-sided)`;
+      } else if (resolved === 'Condition_B') {
+        const dirP = bTest.supplementary_directional_tests ? bTest.supplementary_directional_tests.c_greater_s.p_value : 0.03125;
+        statMcnemarDir.textContent = `Supplementary directional (C > S): exact p = ${dirP.toFixed(5)} (exploratory one-sided)`;
+      }
+    }
+  } else {
+    // Standard calculation for other conditions
+    if (statMcnemarTwo) statMcnemarTwo.textContent = `Paired run comparison`;
+    if (badgeMcnemar) {
+      badgeMcnemar.className = 'badge-pill badge-info';
+      badgeMcnemar.textContent = `Ablation Condition`;
+    }
+    if (statMcnemarDir) statMcnemarDir.textContent = `Evaluated across ${runs.length} paired seeds`;
+  }
+
+  // 3. Continuous Held-Out Test Accuracy & Paired t-test
+  const statTerminalAcc = document.getElementById('stat-terminal-acc');
+  const statPairedDiff = document.getElementById('stat-paired-diff');
+  const statPairedT = document.getElementById('stat-paired-t');
+  const statCi95 = document.getElementById('stat-ci-95');
+
+  const meanS = summary.mean_acc_s_only !== undefined ? summary.mean_acc_s_only : (summary.mean_final_acc_S || 0);
+  const stdS = summary.std_acc_s_only !== undefined ? summary.std_acc_s_only : 0;
+  const meanC = summary.mean_acc_c_only !== undefined ? summary.mean_acc_c_only : (summary.mean_final_acc_C || 0);
+  const stdC = summary.std_acc_c_only !== undefined ? summary.std_acc_c_only : 0;
+
+  if (statTerminalAcc) {
+    statTerminalAcc.innerHTML = `S-only: <strong>${(meanS * 100).toFixed(2)}%</strong> (±${(stdS * 100).toFixed(2)}%) &nbsp;|&nbsp; C-only: <strong>${(meanC * 100).toFixed(2)}%</strong> (±${(stdC * 100).toFixed(2)}%)`;
+  }
+
+  if (statsSection) {
+    if (resolved === 'Condition_A') {
+      const diffMean = (statsSection['accuracy_difference_mean (S - C)'] * 100).toFixed(2);
+      const tStat = statsSection.paired_t_stat_acc.toFixed(4);
+      const df = statsSection.degrees_of_freedom;
+      const pVal = statsSection.paired_p_val_acc_twosided.toFixed(4);
+      const ciLow = (statsSection.ci_95_diff[0] * 100).toFixed(2);
+      const ciHigh = (statsSection.ci_95_diff[1] * 100).toFixed(2);
+
+      if (statPairedDiff) statPairedDiff.textContent = `Mean Paired Diff (S − C): +${diffMean} percentage points`;
+      if (statPairedT) statPairedT.textContent = `Paired t(${df}) = ${tStat}, two-sided p = ${pVal} (NS at α=0.05)`;
+      if (statCi95) statCi95.textContent = `95% Confidence Interval: [${ciLow}, +${ciHigh}] percentage points`;
+    } else if (resolved === 'Condition_B') {
+      const diffMean = (statsSection['accuracy_difference_mean (C - S)'] * 100).toFixed(2);
+      const tStat = statsSection.paired_t_stat_acc.toFixed(4);
+      const df = statsSection.degrees_of_freedom;
+      const pVal = statsSection.paired_p_val_acc_twosided.toExponential(3);
+      const ciLow = (statsSection.ci_95_diff[0] * 100).toFixed(2);
+      const ciHigh = (statsSection.ci_95_diff[1] * 100).toFixed(2);
+
+      if (statPairedDiff) statPairedDiff.textContent = `Mean Paired Diff (C − S): +${diffMean} percentage points`;
+      if (statPairedT) statPairedT.textContent = `Paired t(${df}) = ${tStat}, two-sided p = ${pVal} (Significant)`;
+      if (statCi95) statCi95.textContent = `95% Confidence Interval: [+${ciLow}, +${ciHigh}] percentage points`;
+    }
+  } else {
+    // Dynamic calculation from runs
+    const diff = (meanS - meanC) * 100;
+    const diffSign = diff >= 0 ? '+' : '';
+    if (statPairedDiff) statPairedDiff.textContent = `Mean Paired Diff: ${diffSign}${diff.toFixed(2)} percentage points`;
+    if (statPairedT) statPairedT.textContent = `Continuous terminal accuracy evaluated on test_d (N=600)`;
+    if (statCi95) statCi95.textContent = `Joint accuracy: ${(summary.mean_joint_acc * 100).toFixed(2)}% (±${(summary.std_joint_acc * 100).toFixed(2)}%)`;
+  }
+
+  // 4. Feature Reliance Ratio
+  const statReliance = document.getElementById('stat-reliance');
+  if (statReliance) {
+    const relS = (summary.mean_reliance_S * 100).toFixed(1);
+    const relC = ((1 - summary.mean_reliance_S) * 100).toFixed(1);
+    statReliance.textContent = `${relS}% S / ${relC}% C (mean ratio: ${summary.mean_reliance_S.toFixed(3)})`;
+  }
+
+  // 5. Exploratory Epoch-1 Split Metrics
+  const statEarlySplit = document.getElementById('stat-early-split');
+  if (statEarlySplit) {
+    if (resolved === 'Condition_A') {
+      statEarlySplit.innerHTML = `<strong>Exploratory Epoch-1 Comparison:</strong><br>` +
+        `• Validation Split (N=600): S = <strong>85.81%</strong> vs C = 59.87% (paired t(4)=5.27, p=0.0056)<br>` +
+        `• Held-Out Test Split (N=600): S = <strong>83.50%</strong> vs C = 61.20% (paired t(4)=4.39, p=0.0117)`;
+    } else if (resolved === 'Condition_B') {
+      statEarlySplit.innerHTML = `<strong>Exploratory Epoch-1 Comparison:</strong><br>` +
+        `• Held-Out Test Split (N=600): C = <strong>96.87%</strong> vs S = 50.80% (instantaneous inversion)`;
+    } else {
+      statEarlySplit.innerHTML = `<strong>Monitoring Split:</strong> ${currentProtocol === 'corrected' ? 'val_d' : 'test_d'} (τ=0.80) | <strong>Held-out test:</strong> test_d (epoch 50)`;
+    }
+  }
+
+  // 6. Scientific Interpretation Box
+  if (statInterp) {
+    if (resolved === 'Condition_A') {
+      statInterp.innerHTML = `<strong>Scientific Interpretation:</strong> Under strictly matched Bayes signal parity (both ceilings = 95.0%), S is acquired in 5/5 runs (mean 1.8 ± 1.8 ep) while C is right-censored in 5/5 runs (>50 ep). Exact McNemar two-sided p = 0.0625 (nonsignificant at α=0.05 due to N=5 discrete sample size limit; directional one-sided p = 0.03125). Terminal held-out accuracy favors S (+4.63 pp, t(4)=2.10, p=0.1035).`;
+    } else if (resolved === 'Condition_B') {
+      statInterp.innerHTML = `<strong>Scientific Interpretation:</strong> When complex signal quality dominates (99% vs 75% Bayes ceiling), learning order decisively inverts: C crossed in 5/5 runs at epoch 1.0, while S crossed in 0/5 runs (>50 ep). Terminal accuracy overwhelmingly favors C (96.75% vs 50.97%, diff +45.77 pp, t(4)=78.83, p=1.55e-7). Simplicity bias is completely subordinated to signal quality.`;
+    } else {
+      statInterp.innerHTML = `<strong>Scientific Interpretation:</strong> ${meta.desc}`;
+    }
+  }
+
+  // 7. Update Dynamics Line Chart
+  const curves = getActiveCurves(resolved, currentSeedFilter);
+  if (curves && resultsChart) {
+    resultsChart.data.labels = curves.epochs;
+    resultsChart.data.datasets[0].data = curves.joint;
+    resultsChart.data.datasets[1].data = curves.sOnly;
+    resultsChart.data.datasets[2].data = curves.cOnly;
+    resultsChart.data.datasets[3].data = curves.noise;
+    resultsChart.update();
+  }
+
+  // 8. Update Per-Seed Breakdown Table
+  renderSeedTable(runs, summary);
+}
+
+/**
+ * Render Per-Seed Empirical Breakdown Table
+ */
+function renderSeedTable(runs, summary) {
+  const tbody = document.getElementById('seed-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  runs.forEach(r => {
+    const tr = document.createElement('tr');
+    if (currentSeedFilter === r.seed.toString()) {
+      tr.style.backgroundColor = 'rgba(56, 189, 248, 0.15)';
+    }
+
+    // Extract exact acquisition epochs
+    let sEpStr = 'Censored (>50)';
+    let cEpStr = 'Censored (>50)';
+
+    if (r.S_acquisition && r.S_acquisition.crossed_threshold && r.S_acquisition.observed_epoch !== null) {
+      sEpStr = `Ep ${r.S_acquisition.observed_epoch}`;
+    } else if (r.T_S_observed !== null && r.T_S_observed !== undefined) {
+      sEpStr = `Ep ${r.T_S_observed}`;
+    }
+
+    if (r.C_acquisition && r.C_acquisition.crossed_threshold && r.C_acquisition.observed_epoch !== null) {
+      cEpStr = `Ep ${r.C_acquisition.observed_epoch}`;
+    } else if (r.T_C_observed !== null && r.T_C_observed !== undefined) {
+      cEpStr = `Ep ${r.T_C_observed}`;
+    }
+
+    // Accuracies from final_test_metrics
+    const finalJ = r.final_test_metrics ? r.final_test_metrics.acc_joint : r.final_acc_joint;
+    const finalS = r.final_test_metrics ? r.final_test_metrics.acc_s_only : r.final_acc_s_only;
+    const finalC = r.final_test_metrics ? r.final_test_metrics.acc_c_only : r.final_acc_c_only;
+    const reliance = r.reliance_ratio_S !== undefined ? r.reliance_ratio_S : 0.5;
+
+    const diffPP = (finalS - finalC) * 100;
+    const diffSign = diffPP >= 0 ? '+' : '';
+    const diffColor = diffPP >= 0 ? '#38bdf8' : '#f43f5e';
+
+    tr.innerHTML = `
+      <td><strong>Seed ${r.seed}</strong></td>
+      <td><span class="${sEpStr.includes('Censored') ? 'censored-tag' : 'crossing-tag'}">${sEpStr}</span></td>
+      <td><span class="${cEpStr.includes('Censored') ? 'censored-tag' : 'crossing-tag'}">${cEpStr}</span></td>
+      <td>${(finalJ * 100).toFixed(2)}%</td>
+      <td>${(finalS * 100).toFixed(2)}%</td>
+      <td>${(finalC * 100).toFixed(2)}%</td>
+      <td style="color: ${diffColor}; font-weight: 600;">${diffSign}${diffPP.toFixed(2)} pp</td>
+      <td>${(reliance * 100).toFixed(1)}% / ${((1 - reliance) * 100).toFixed(1)}%</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Summary Row
+  const summaryTr = document.createElement('tr');
+  summaryTr.style.background = 'rgba(15, 23, 42, 0.95)';
+  summaryTr.style.fontWeight = 'bold';
+
+  const sMeanStr = (summary.S_mean_observed_epoch !== null && summary.S_mean_observed_epoch !== undefined)
+    ? `Mean: Ep ${summary.S_mean_observed_epoch.toFixed(1)}`
+    : `5/5 Censored`;
+
+  const cMeanStr = (summary.C_mean_observed_epoch !== null && summary.C_mean_observed_epoch !== undefined)
+    ? `Mean: Ep ${summary.C_mean_observed_epoch.toFixed(1)}`
+    : `5/5 Censored`;
+
+  const meanJ = (summary.mean_joint_acc * 100).toFixed(2);
+  const meanS = (summary.mean_acc_s_only * 100).toFixed(2);
+  const meanC = (summary.mean_acc_c_only * 100).toFixed(2);
+  const meanDiff = ((summary.mean_acc_s_only - summary.mean_acc_c_only) * 100);
+  const meanDiffSign = meanDiff >= 0 ? '+' : '';
+
+  summaryTr.innerHTML = `
+    <td><strong>Mean (5 Runs)</strong></td>
+    <td>${sMeanStr}</td>
+    <td>${cMeanStr}</td>
+    <td>${meanJ}%</td>
+    <td>${meanS}%</td>
+    <td>${meanC}%</td>
+    <td style="color: ${meanDiff >= 0 ? '#38bdf8' : '#f43f5e'};">${meanDiffSign}${meanDiff.toFixed(2)} pp</td>
+    <td>${(summary.mean_reliance_S * 100).toFixed(1)}% / ${((1 - summary.mean_reliance_S) * 100).toFixed(1)}%</td>
+  `;
+  tbody.appendChild(summaryTr);
+}
+
+/**
+ * Switch Condition Tab Handler
+ */
+function switchCondition(condKey) {
+  const resolved = resolveConditionKey(condKey);
+  currentConditionKey = resolved;
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const btnCond = btn.getAttribute('data-condition');
+    if (btnCond === condKey || btnCond === resolved) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  updateConditionView(resolved);
+}
+
+/**
+ * Switch Seed Filter Handler
+ */
+function switchSeed(seedId) {
+  currentSeedFilter = seedId;
+
+  document.querySelectorAll('.seed-btn').forEach(btn => {
+    const btnSeed = btn.getAttribute('data-seed');
+    if (btnSeed === seedId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  updateConditionView(currentConditionKey);
+}
+
+/**
+ * Update Raw Artifact Inspector Pre-Blocks
+ */
+function updateInspectorViews() {
+  const preStats = document.getElementById('pre-stats-json');
+  const preRaw = document.getElementById('pre-raw-json');
+
+  if (preStats && STATISTICAL_SUMMARY) {
+    preStats.textContent = JSON.stringify(STATISTICAL_SUMMARY, null, 2);
+  }
+
+  if (preRaw && EXPERIMENTAL_DATA) {
+    // Show metadata, baselines, and condition summaries
+    const previewObj = {
+      metadata: EXPERIMENTAL_DATA.metadata,
+      single_feature_baselines: EXPERIMENTAL_DATA.single_feature_baselines,
+      condition_summaries: {}
+    };
+    for (const [k, v] of Object.entries(EXPERIMENTAL_DATA.conditions || {})) {
+      previewObj.condition_summaries[k] = v.summary;
+    }
+    preRaw.textContent = JSON.stringify(previewObj, null, 2);
+  }
+
+  // Update Baseline Oracle Numbers
+  const baselines = EXPERIMENTAL_DATA ? EXPERIMENTAL_DATA.single_feature_baselines : null;
+  if (baselines) {
+    const elS = document.getElementById('oracle-acc-s');
+    const elC = document.getElementById('oracle-acc-c');
+    const elLinearC = document.getElementById('oracle-linear-c');
+    if (elS && baselines.S_alone) elS.textContent = `${(baselines.S_alone.final_acc * 100).toFixed(2)}% Test Accuracy`;
+    if (elC && baselines.C_alone) elC.textContent = `${(baselines.C_alone.final_acc * 100).toFixed(2)}% Test Accuracy`;
+    if (elLinearC && baselines.logistic_regression) elLinearC.textContent = `${(baselines.logistic_regression.linear_acc_on_C_origin * 100).toFixed(2)}% (Chance Level)`;
+  }
+}
+
+/**
+ * Inspector Tab Switching
+ */
+function initInspectorTabs() {
+  document.querySelectorAll('.insp-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.insp-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.insp-pane').forEach(p => p.classList.remove('active'));
+
+      btn.classList.add('active');
+      const paneId = `pane-${btn.getAttribute('data-insp')}`;
+      const pane = document.getElementById(paneId);
+      if (pane) pane.classList.add('active');
+    });
+  });
+}
+
+/**
+ * Interactive 2D Feature Subspace Canvas Rendering
+ */
+function drawSubspaceS() {
+  const canvas = document.getElementById('canvas-s');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background Grid
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h);
+  ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+  ctx.stroke();
+
+  // Decision Boundary: Linear line x1 = 0
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 10); ctx.lineTo(w / 2, h - 10);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Plot synthetic sample points
+  const sliderS = document.getElementById('slider-eta-s');
+  const etaS = sliderS ? parseFloat(sliderS.value) : 0.05;
+
+  // Pseudo-random deterministic generator for consistent rendering
+  let seed = 42;
+  function rnd() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  }
+
+  const numPoints = 80;
+  for (let i = 0; i < numPoints; i++) {
+    const label = rnd() > 0.5 ? 1 : -1;
+    const flip = rnd() < etaS;
+    const effectiveLabel = flip ? -label : label;
+
+    // S coordinate mean is separated by effectiveLabel
+    const cx = (w / 2) + (effectiveLabel * (w * 0.22)) + (rnd() - 0.5) * (w * 0.28);
+    const cy = (h / 2) + (rnd() - 0.5) * (h * 0.7);
+
+    ctx.fillStyle = effectiveLabel === 1 ? '#38bdf8' : '#f43f5e';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawSubspaceC() {
+  const canvas = document.getElementById('canvas-c');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background Grid / Quadrant dividers
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h);
+  ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2);
+  ctx.stroke();
+
+  // Plot synthetic XOR quadrant points
+  const sliderC = document.getElementById('slider-eta-c');
+  const etaC = sliderC ? parseFloat(sliderC.value) : 0.05;
+
+  let seed = 101;
+  function rnd() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  }
+
+  const numPoints = 80;
+  for (let i = 0; i < numPoints; i++) {
+    const qx = rnd() > 0.5 ? 1 : -1;
+    const qy = rnd() > 0.5 ? 1 : -1;
+    const xorLabel = qx * qy;
+    const flip = rnd() < etaC;
+    const effectiveLabel = flip ? -xorLabel : xorLabel;
+
+    const cx = (w / 2) + (qx * (w * 0.24)) + (rnd() - 0.5) * (w * 0.22);
+    const cy = (h / 2) + (qy * (h * 0.24)) + (rnd() - 0.5) * (h * 0.22);
+
+    ctx.fillStyle = effectiveLabel === 1 ? '#38bdf8' : '#f43f5e';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/**
+ * Initialize Interactive Simulation Chart
+ */
 function initSimChart() {
   const canvas = document.getElementById('sim-chart');
   if (!canvas) return;
@@ -229,7 +899,7 @@ function initSimChart() {
         {
           label: 'Simulated S-only (Linear)',
           data: [],
-          borderColor: '#3b82f6',
+          borderColor: '#38bdf8',
           borderWidth: 2,
           tension: 0.2,
           pointRadius: 0
@@ -237,7 +907,7 @@ function initSimChart() {
         {
           label: 'Simulated C-only (XOR)',
           data: [],
-          borderColor: '#ef4444',
+          borderColor: '#f43f5e',
           borderWidth: 2,
           tension: 0.2,
           pointRadius: 0
@@ -255,7 +925,7 @@ function initSimChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 300 },
+      animation: { duration: 250 },
       plugins: {
         legend: {
           display: true,
@@ -265,7 +935,7 @@ function initSimChart() {
       },
       scales: {
         x: {
-          title: { display: true, text: 'Epoch', color: '#94a3b8', font: { size: 10 } },
+          title: { display: true, text: 'Simulated Epoch', color: '#94a3b8', font: { size: 10 } },
           grid: { color: 'rgba(255, 255, 255, 0.04)' },
           ticks: { color: '#94a3b8', font: { size: 9 } }
         },
@@ -285,147 +955,36 @@ function initSimChart() {
   });
 }
 
-// Update the Condition View
-function updateConditionView(condKey) {
-  const resolved = resolveConditionKey(condKey);
-  currentConditionKey = resolved;
-  const meta = CONDITION_METADATA[resolved] || CONDITION_METADATA[condKey] || { title: condKey, badge: "Verified", interpretation: "", pVal: "p < 0.001" };
+/**
+ * Slider Update Handler
+ */
+function onSliderChange() {
+  const sS = document.getElementById('slider-eta-s');
+  const sC = document.getElementById('slider-eta-c');
+  const valS = document.getElementById('val-eta-s');
+  const valC = document.getElementById('val-eta-c');
+  const hintS = document.getElementById('hint-acc-s');
+  const hintC = document.getElementById('hint-acc-c');
 
-  const chartTitle = document.getElementById('chart-condition-title');
-  const badgeCond = document.getElementById('badge-stat-cond');
-  const statInterp = document.getElementById('stat-interpretation');
-  const statPVal = document.getElementById('stat-p-val');
-
-  if (chartTitle) chartTitle.textContent = meta.title + (currentSeedFilter === "all" ? " (Mean across seeds)" : ` (Seed ${currentSeedFilter})`);
-  if (badgeCond) badgeCond.textContent = meta.badge;
-  if (statInterp) statInterp.innerHTML = `<strong>Scientific Interpretation:</strong> ${meta.interpretation}`;
-  if (statPVal) statPVal.textContent = meta.pVal;
-
-  if (!EXPERIMENTAL_DATA || !EXPERIMENTAL_DATA.conditions || !EXPERIMENTAL_DATA.conditions[resolved]) {
-    return;
+  if (sS && valS) {
+    const vS = parseFloat(sS.value);
+    valS.textContent = vS.toFixed(2);
+    if (hintS) hintS.textContent = `${((1 - vS) * 100).toFixed(0)}%`;
+  }
+  if (sC && valC) {
+    const vC = parseFloat(sC.value);
+    valC.textContent = vC.toFixed(2);
+    if (hintC) hintC.textContent = `${((1 - vC) * 100).toFixed(0)}%`;
   }
 
-  const cond = EXPERIMENTAL_DATA.conditions[resolved];
-  const summary = cond.summary;
-  const runs = cond.runs;
-
-  const tcDisplay = summary.mean_T_C > 50 ? "> 50 epochs (censored)" : `${summary.mean_T_C.toFixed(1)} ± ${summary.std_T_C.toFixed(1)} epochs`;
-  const statTs = document.getElementById('stat-ts');
-  const statTc = document.getElementById('stat-tc');
-  const statDelta = document.getElementById('stat-delta');
-  const statReliance = document.getElementById('stat-reliance');
-
-  if (statTs) statTs.textContent = `${summary.mean_T_S.toFixed(1)} ± ${summary.std_T_S.toFixed(1)} epochs`;
-  if (statTc) statTc.textContent = tcDisplay;
-
-  const deltaSign = summary.mean_Delta > 0 ? "+" : "";
-  if (statDelta) {
-    statDelta.textContent = `${deltaSign}${summary.mean_Delta.toFixed(2)} ± ${summary.std_Delta.toFixed(2)} epochs`;
-    statDelta.style.color = summary.mean_Delta < 0 ? '#f87171' : '#60a5fa';
-  }
-
-  const reliancePctS = (summary.mean_reliance_S * 100).toFixed(1);
-  const reliancePctC = ((1 - summary.mean_reliance_S) * 100).toFixed(1);
-  if (statReliance) statReliance.textContent = `${reliancePctS}% S (${reliancePctC}% C)`;
-
-  // Update Chart
-  const curves = getActiveCurves(resolved, currentSeedFilter);
-  if (curves && resultsChart) {
-    resultsChart.data.labels = curves.epochs;
-    resultsChart.data.datasets[0].data = curves.joint;
-    resultsChart.data.datasets[1].data = curves.sOnly;
-    resultsChart.data.datasets[2].data = curves.cOnly;
-    resultsChart.data.datasets[3].data = curves.noise;
-    resultsChart.update();
-  }
-
-  // Update Seed Table
-  const tbody = document.getElementById('seed-table-body');
-  if (tbody) {
-    tbody.innerHTML = '';
-    runs.forEach(r => {
-      const tr = document.createElement('tr');
-      if (currentSeedFilter === r.seed.toString()) {
-        tr.style.backgroundColor = 'rgba(59, 130, 246, 0.18)';
-      }
-
-      const t_s_str = r.T_S > 50 ? ">50 (censored)" : r.T_S.toString();
-      const t_c_str = r.T_C > 50 ? ">50 (censored)" : r.T_C.toString();
-      const delta_str = (r.Delta > 0 ? "+" : "") + r.Delta;
-      const rel_s_str = (r.reliance_ratio_S * 100).toFixed(1) + "%";
-      const rel_c_str = ((1 - r.reliance_ratio_S) * 100).toFixed(1) + "%";
-
-      tr.innerHTML = `
-        <td><strong>Seed ${r.seed}</strong></td>
-        <td>${t_s_str} ep</td>
-        <td>${t_c_str} ep</td>
-        <td style="color: ${r.Delta < 0 ? '#f87171' : '#60a5fa'}; font-weight: bold;">${delta_str}</td>
-        <td>${(r.final_acc_joint * 100).toFixed(2)}%</td>
-        <td>${(r.final_acc_s_only * 100).toFixed(2)}%</td>
-        <td>${(r.final_acc_c_only * 100).toFixed(2)}%</td>
-        <td>${rel_s_str} / ${rel_c_str}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    // Summary Row
-    const summaryTr = document.createElement('tr');
-    summaryTr.style.background = 'rgba(15, 23, 42, 0.9)';
-    summaryTr.style.fontWeight = 'bold';
-    summaryTr.innerHTML = `
-      <td><strong>Mean ± Std</strong></td>
-      <td>${summary.mean_T_S.toFixed(1)} ± ${summary.std_T_S.toFixed(1)} ep</td>
-      <td>${summary.mean_T_C > 50 ? ">50" : summary.mean_T_C.toFixed(1)} ep</td>
-      <td style="color: ${summary.mean_Delta < 0 ? '#f87171' : '#60a5fa'};">${deltaSign}${summary.mean_Delta.toFixed(1)}</td>
-      <td>—</td>
-      <td>—</td>
-      <td>—</td>
-      <td>${reliancePctS}% / ${reliancePctC}%</td>
-    `;
-    tbody.appendChild(summaryTr);
-  }
+  drawSubspaceS();
+  drawSubspaceC();
+  runLiveSimulation(false);
 }
 
-// Global Tab & Seed Handlers
-function switchCondition(condKey) {
-  const resolved = resolveConditionKey(condKey);
-  currentConditionKey = resolved;
-
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    const btnCond = btn.getAttribute('data-condition');
-    if (btnCond === condKey || btnCond === resolved) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-
-  updateConditionView(resolved);
-}
-
-function switchSeed(seedId) {
-  currentSeedFilter = seedId;
-
-  document.querySelectorAll('.seed-btn').forEach(btn => {
-    const btnSeed = btn.getAttribute('data-seed');
-    if (btnSeed === seedId) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-
-  updateConditionView(currentConditionKey);
-}
-
-let simAnimationTimer = null;
-let isSimulationRunning = false;
-
-function startSimulation() {
-  runLiveSimulation(true);
-}
-
-// Live Learning Dynamics Simulator Logic
+/**
+ * Live Simulation Engine
+ */
 function runLiveSimulation(animated = false) {
   if (simAnimationTimer) {
     clearInterval(simAnimationTimer);
@@ -447,586 +1006,264 @@ function runLiveSimulation(animated = false) {
   const ceilingS = 1.0 - etaS;
   const ceilingC = 1.0 - etaC;
 
-  // Arch modifier on nonlinear composition
-  let archModifierC = 1.0;
-  if (arch === "DeepMLP") archModifierC = 0.68; // ~32% faster nonlinear composition
-  if (arch === "ResMLP") archModifierC = 0.85;  // ~15% faster via skip highway
+  // Architectural modifier on non-linear acquisition speed
+  let cRateMod = 1.0;
+  if (arch === 'DeepMLP') cRateMod = 1.6;
+  if (arch === 'ResMLP') cRateMod = 1.8;
+  if (opt === 'SGD') cRateMod *= 0.45;
 
-  // Optimizer modifier
-  let optModifierC = 1.0;
-  let optModifierS = 1.0;
-  if (opt === "SGD") {
-    optModifierC = 1.95; // SGD struggles with XOR coordinate symmetry
-    optModifierS = 0.90; // SGD quickly descends linear direction
-  }
+  let sRateMod = 1.0;
+  if (opt === 'SGD') sRateMod = 0.85;
 
-  // Calculate learning times (epochs to cross tau = 0.80)
-  let t_s, t_c;
-  const deltaSignal = ceilingC - ceilingS;
-
-  if (deltaSignal > 0.10) {
-    // Condition B regime: Nonlinear XOR feature has overwhelmingly cleaner signal
-    t_c = 1;
-    t_s = 51; // Linear feature suppressed
-  } else if (deltaSignal < -0.10) {
-    // Condition C regime: Linear feature has overwhelmingly cleaner signal
-    t_s = 1;
-    t_c = 51; // Complex feature completely ignored
-  } else {
-    // Competitive / parity regime: Both features have comparable signal
-    // Linear feature has non-zero initial gradient E[y * x_S] != 0
-    t_s = Math.max(1, Math.round(1.6 * optModifierS));
-    
-    // Nonlinear feature depends heavily on architecture depth and optimizer
-    let baseTc = Math.round(35 * archModifierC * optModifierC);
-    if (arch === "DeepMLP" && opt === "AdamW") {
-      baseTc = 33; // Exactly reproduces Seed 105 empirical crossing!
-    } else if (arch === "StandardMLP" && opt === "AdamW") {
-      baseTc = 51; // Reaches 78% (just below 80% ceiling)
-    }
-    t_c = Math.min(51, Math.max(8, baseTc));
-  }
-
-  const delta = t_c - t_s;
-
-  // Generate 50-epoch trajectories
-  const epochs = Array.from({ length: 50 }, (_, i) => i + 1);
   const simJoint = [];
   const simS = [];
   const simC = [];
 
-  for (let ep = 1; ep <= 50; ep++) {
-    // S progression curve
-    let accS;
-    if (deltaSignal > 0.15) {
-      accS = 0.50 + (Math.sin(ep * 2.3) * 0.015);
-    } else {
-      const kS = 0.85;
-      accS = 0.50 + (ceilingS - 0.50) / (1 + Math.exp(-kS * (ep - t_s)));
-    }
-    simS.push(Number(accS.toFixed(4)));
+  const maxEpochs = 50;
+  let crossedS = null;
+  let crossedC = null;
 
-    // C progression curve
-    let accC;
-    if (t_c === 1) {
-      accC = 0.50 + (ceilingC - 0.50) / (1 + Math.exp(-1.3 * (ep - 0.6)));
-    } else if (t_c > 50) {
-      const maxCReached = 0.50 + (ceilingC - 0.50) * (opt === "SGD" ? 0.35 : 0.65);
-      accC = 0.50 + (maxCReached - 0.50) * (1 - Math.exp(-0.06 * ep));
-    } else {
-      const kC = 0.40;
-      accC = 0.50 + (ceilingC - 0.50) / (1 + Math.exp(-kC * (ep - t_c)));
-    }
-    simC.push(Number(accC.toFixed(4)));
+  for (let ep = 1; ep <= maxEpochs; ep++) {
+    // S logistic acquisition: fast linear convergence
+    const sProgress = 1 / (1 + Math.exp(-0.75 * sRateMod * (ep - 2)));
+    const sAcc = 0.50 + (ceilingS - 0.50) * sProgress;
 
-    // Joint curve
-    const maxIndiv = Math.max(accS, accC);
-    const jointLimit = Math.min(0.98, Math.max(ceilingS, ceilingC) + 0.03);
-    const joint = Math.min(jointLimit, maxIndiv + 0.035 * (1 - Math.exp(-0.18 * ep)));
-    simJoint.push(Number(joint.toFixed(4)));
+    // C non-linear acquisition: saddle point escape latency
+    const cLag = (opt === 'SGD') ? 16 : (arch === 'StandardMLP' ? 8 : 4);
+    const cSlope = 0.45 * cRateMod;
+    const cProgress = 1 / (1 + Math.exp(-cSlope * (ep - cLag)));
+    const cAcc = 0.50 + (ceilingC - 0.50) * cProgress;
+
+    // Joint accuracy
+    const jCeiling = Math.max(ceilingS, ceilingC, 1 - (etaS * etaC));
+    const jAcc = Math.min(jCeiling, Math.max(sAcc, cAcc) + 0.03 * (1 / (1 + Math.exp(-0.5 * ep))));
+
+    simS.push(sAcc);
+    simC.push(cAcc);
+    simJoint.push(jAcc);
+
+    if (crossedS === null && sAcc >= 0.80) crossedS = ep;
+    if (crossedC === null && cAcc >= 0.80) crossedC = ep;
   }
 
-  // Update simulator UI labels
+  // Update Status Box & Badges
+  const badgeOrder = document.getElementById('sim-order-badge');
+  const statusText = document.getElementById('sim-status-text');
   const archLabel = document.getElementById('sim-arch-label');
   const optLabel = document.getElementById('sim-opt-label');
+
   if (archLabel) archLabel.textContent = arch;
   if (optLabel) optLabel.textContent = opt;
 
-  function renderFinalSummary() {
-    const badgeElem = document.getElementById('sim-order-badge');
-    const deltaSign = delta > 0 ? "+" : "";
-    if (badgeElem) {
-      badgeElem.textContent = `Simulated Δ = ${deltaSign}${delta} ep`;
-      if (delta < 0) {
-        badgeElem.style.background = 'rgba(239, 68, 68, 0.25)';
-        badgeElem.style.color = '#fca5a5';
-      } else if (arch === "DeepMLP" && t_c <= 35) {
-        badgeElem.style.background = 'rgba(16, 185, 129, 0.25)';
-        badgeElem.style.color = '#6ee7b7';
-      } else {
-        badgeElem.style.background = 'rgba(99, 102, 241, 0.25)';
-        badgeElem.style.color = '#a5b4fc';
-      }
-    }
-
-    const statusBox = document.getElementById('sim-status-text');
-    if (statusBox) {
-      let narrative = `<strong>Configuration:</strong> ${arch} with ${opt} (η_S = ${etaS.toFixed(2)}, η_C = ${etaC.toFixed(2)}).<br>`;
-      narrative += `<strong>Simulated Acquisition Times:</strong> Linear $T_S = ${t_s > 50 ? '> 50 (censored)' : t_s}$ ep, Complex $T_C = ${t_c > 50 ? '> 50 (censored)' : t_c}$ ep (Order $\\Delta = ${deltaSign}${delta}$ ep).<br>`;
-
-      if (delta < 0) {
-        narrative += `<span style="color: #f87171; font-weight: bold;">FALSIFICATION INVERSION:</span> Because the nonlinear XOR feature has superior signal quality (${(ceilingC*100).toFixed(0)}% vs ${(ceilingS*100).toFixed(0)}%), the network prioritizes $x_C$ at Epoch 1 and abandons $x_S$. Simplicity bias fails!`;
-      } else if (Math.abs(deltaSignal) <= 0.08) {
-        narrative += `<strong>Signal Parity Regime:</strong> Linear feature learned in Epoch 1-2 due to non-zero initial gradient. `;
-        if (arch === "DeepMLP" && opt === "AdamW") {
-          narrative += `<span style="color: #34d399; font-weight: bold;">DeepMLP (4 layers) + AdamW accelerated nonlinear composition!</span> Reaches $\\tau=80\\%$ at Epoch ${t_c}, shifting feature reliance toward parity.`;
-        } else if (opt === "SGD") {
-          narrative += `<span style="color: #fbbf24;">SGD struggles with XOR coordinate symmetry</span> (flat curvature plateau), locking into linear feature and delaying $T_C > 50$.`;
-        } else if (arch === "ResMLP") {
-          narrative += `ResMLP residual connections stabilize convergence while maintaining simplicity bias.`;
-        } else {
-          narrative += `StandardMLP remains simplicity-biased, relying predominantly on linear feature.`;
-        }
-      } else {
-        narrative += `<strong>Linear Dominant Regime:</strong> Clean linear signal (${(ceilingS*100).toFixed(0)}%) reinforces simplicity bias, completely suppressing the noisy nonlinear feature.`;
-      }
-      statusBox.innerHTML = narrative;
-    }
+  let orderMsg = '';
+  if (crossedS !== null && crossedC !== null) {
+    const delta = crossedC - crossedS;
+    const sign = delta > 0 ? '+' : '';
+    if (badgeOrder) badgeOrder.textContent = `Δ = ${sign}${delta} epochs (${delta > 0 ? 'S Learned First' : 'C Learned First'})`;
+    orderMsg = delta > 0
+      ? `Simplicity Prioritization: Linear S reached τ=0.80 at Epoch ${crossedS}; Nonlinear C at Epoch ${crossedC} (Δ = +${delta} ep).`
+      : `Signal Inversion: Nonlinear C reached τ=0.80 at Epoch ${crossedC}; Linear S at Epoch ${crossedS} (Δ = ${delta} ep).`;
+  } else if (crossedS !== null && crossedC === null) {
+    if (badgeOrder) badgeOrder.textContent = `S Learned (C Right-Censored)`;
+    orderMsg = `Standard Simplicity Bias: S crossed τ=0.80 at Epoch ${crossedS}; C failed to cross within 50 epochs (right-censored).`;
+  } else if (crossedS === null && crossedC !== null) {
+    if (badgeOrder) badgeOrder.textContent = `C Learned (S Right-Censored)`;
+    orderMsg = `Falsification Dominance: Complex C crossed τ=0.80 at Epoch ${crossedC}; S failed to cross (right-censored).`;
+  } else {
+    if (badgeOrder) badgeOrder.textContent = `Neither Crossed τ=0.80`;
+    orderMsg = `Severe noise / optimization barrier: Neither feature reached the acquisition threshold.`;
   }
 
-  const btnRunSim = document.getElementById('btn-run-sim');
+  if (statusText) statusText.textContent = orderMsg;
 
-  if (!animated) {
-    // Instant plot without animation (e.g. initial load or quick slider drag)
-    renderFinalSummary();
-    if (simChart) {
-      simChart.data.datasets[0].data = simJoint;
-      simChart.data.datasets[1].data = simS;
-      simChart.data.datasets[2].data = simC;
-      simChart.update('none');
-    }
-    return;
-  }
-
-  // ANIMATED TRAINING SIMULATION RUN (Epoch-by-epoch live in the graph)
-  isSimulationRunning = true;
-  if (btnRunSim) {
-    btnRunSim.classList.add('simulating');
-  }
-
-  // Clear curves initially so user watches the lines trace live from left to right
-  if (simChart) {
+  if (animated && simChart) {
+    isSimulationRunning = true;
     simChart.data.datasets[0].data = [];
     simChart.data.datasets[1].data = [];
     simChart.data.datasets[2].data = [];
-    simChart.update('none');
-  }
+    simChart.update();
 
-  let currentEp = 1;
-  const totalEp = 50;
-  const stepMs = 30; // 50 * 30ms = 1.5s total duration
-
-  simAnimationTimer = setInterval(() => {
-    if (currentEp > totalEp) {
-      clearInterval(simAnimationTimer);
-      simAnimationTimer = null;
-      isSimulationRunning = false;
-
-      if (btnRunSim) {
-        btnRunSim.classList.remove('simulating');
-        btnRunSim.innerHTML = `
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M1 4v6h6m-3.5 10A9 9 0 1 0 5.6 5.6L1 10"/>
-          </svg>
-          Re-run Simulation
-        `;
-      }
-
-      renderFinalSummary();
-      return;
-    }
-
-    if (simChart) {
-      simChart.data.datasets[0].data = simJoint.slice(0, currentEp);
-      simChart.data.datasets[1].data = simS.slice(0, currentEp);
-      simChart.data.datasets[2].data = simC.slice(0, currentEp);
+    let step = 0;
+    simAnimationTimer = setInterval(() => {
+      step++;
+      simChart.data.datasets[0].data = simJoint.slice(0, step);
+      simChart.data.datasets[1].data = simS.slice(0, step);
+      simChart.data.datasets[2].data = simC.slice(0, step);
       simChart.update('none');
-    }
 
-    if (btnRunSim) {
-      btnRunSim.innerHTML = `
-        <svg class="spin-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-        </svg>
-        Simulating Epoch ${currentEp}/50...
-      `;
-    }
-
-    const curJ = (simJoint[currentEp - 1] * 100).toFixed(1);
-    const curS = (simS[currentEp - 1] * 100).toFixed(1);
-    const curC = (simC[currentEp - 1] * 100).toFixed(1);
-    const pct = Math.round((currentEp / totalEp) * 100);
-
-    const statusBox = document.getElementById('sim-status-text');
-    if (statusBox) {
-      statusBox.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="color:#34d399; font-weight:700;">● SIMULATION ACTIVE (${currentEp}/50 epochs)</span>
-          <span style="color:#94a3b8; font-size:11px;">Optimizer: ${opt}</span>
-        </div>
-        <div style="font-size: 13px; line-height: 1.5; color: #e2e8f0; margin-bottom: 8px;">
-          Joint Acc: <strong style="color:#f8fafc;">${curJ}%</strong> • 
-          Linear ($x_S$): <strong style="color:#60a5fa;">${curS}%</strong> • 
-          Nonlinear ($x_C$): <strong style="color:#f87171;">${curC}%</strong>
-        </div>
-        <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
-          <div style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981); transition: width 0.03s linear;"></div>
-        </div>
-      `;
-    }
-
-    const badgeElem = document.getElementById('sim-order-badge');
-    if (badgeElem) {
-      badgeElem.textContent = `Training Epoch ${currentEp}/50 (${pct}%)`;
-      badgeElem.style.background = 'rgba(16, 185, 129, 0.25)';
-      badgeElem.style.color = '#6ee7b7';
-    }
-
-    currentEp++;
-  }, stepMs);
+      if (step >= maxEpochs) {
+        clearInterval(simAnimationTimer);
+        simAnimationTimer = null;
+        isSimulationRunning = false;
+      }
+    }, 25);
+  } else if (simChart) {
+    simChart.data.datasets[0].data = simJoint;
+    simChart.data.datasets[1].data = simS;
+    simChart.data.datasets[2].data = simC;
+    simChart.update();
+  }
 }
 
-// 2D Synthetic Canvases Renderers
-function drawSyntheticManifolds(etaS, etaC) {
-  const canvasS = document.getElementById('canvas-s');
-  const canvasC = document.getElementById('canvas-c');
-  if (!canvasS || !canvasC) return;
-
-  const ctxS = canvasS.getContext('2d');
-  const ctxC = canvasC.getContext('2d');
-
-  const w = canvasS.width;
-  const h = canvasS.height;
-
-  ctxS.clearRect(0, 0, w, h);
-  ctxC.clearRect(0, 0, w, h);
-
-  // Draw Grid lines
-  function drawGrid(context) {
-    context.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-    context.lineWidth = 1;
-    context.beginPath();
-    context.moveTo(w / 2, 0); context.lineTo(w / 2, h);
-    context.moveTo(0, h / 2); context.lineTo(w, h / 2);
-    context.stroke();
-  }
-  drawGrid(ctxS);
-  drawGrid(ctxC);
-
-  // Generate 140 sample points
-  const rng = Math.random;
-  for (let i = 0; i < 140; i++) {
-    const trueLabel = rng() > 0.5 ? 1 : -1;
-
-    // Linear S Subspace
-    let sLabel = (rng() < etaS) ? -trueLabel : trueLabel;
-    const s1 = (sLabel * 0.7) + (rng() - 0.5) * 0.5;
-    const s2 = (sLabel * 0.7) + (rng() - 0.5) * 0.5;
-    const pxS = (s1 + 2) / 4 * w;
-    const pyS = (s2 + 2) / 4 * h;
-
-    ctxS.fillStyle = trueLabel === 1 ? '#3b82f6' : '#f59e0b';
-    ctxS.beginPath();
-    ctxS.arc(pxS, pyS, 3.5, 0, Math.PI * 2);
-    ctxS.fill();
-
-    // Nonlinear C Subspace (XOR)
-    let cLabel = (rng() < etaC) ? -trueLabel : trueLabel;
-    let u1 = (rng() - 0.5) * 2.8;
-    let u2 = (rng() - 0.5) * 2.8;
-    if (Math.abs(u1) < 0.2) u1 += 0.3 * Math.sign(u1 || 1);
-    if (Math.abs(u2) < 0.2) u2 += 0.3 * Math.sign(u2 || 1);
-
-    if (Math.sign(u1 * u2) !== cLabel) {
-      u1 = -u1;
-    }
-
-    const pxC = (u1 + 2) / 4 * w;
-    const pyC = (u2 + 2) / 4 * h;
-
-    ctxC.fillStyle = trueLabel === 1 ? '#ef4444' : '#10b981';
-    ctxC.beginPath();
-    ctxC.arc(pxC, pyC, 3.5, 0, Math.PI * 2);
-    ctxC.fill();
-  }
-
-  // Linear decision boundary line on S (Fixed: ctxS instead of ctx)
-  ctxS.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-  ctxS.lineWidth = 1.5;
-  ctxS.setLineDash([4, 4]);
-  ctxS.beginPath();
-  ctxS.moveTo(0, h); ctxS.lineTo(w, 0);
-  ctxS.stroke();
-  ctxS.setLineDash([]);
-}
-
-function onSliderChange() {
-  try {
-    const sliderS = document.getElementById('slider-eta-s');
-    const sliderC = document.getElementById('slider-eta-c');
-    const valS = document.getElementById('val-eta-s');
-    const valC = document.getElementById('val-eta-c');
-    const hintS = document.getElementById('hint-acc-s');
-    const hintC = document.getElementById('hint-acc-c');
-    if (!sliderS || !sliderC) return;
-
-    const s = parseFloat(sliderS.value);
-    const c = parseFloat(sliderC.value);
-    if (valS) valS.textContent = s.toFixed(2);
-    if (valC) valC.textContent = c.toFixed(2);
-    if (hintS) hintS.textContent = ((1 - s) * 100).toFixed(0) + '%';
-    if (hintC) hintC.textContent = ((1 - c) * 100).toFixed(0) + '%';
-    drawSyntheticManifolds(s, c);
-    runLiveSimulation();
-  } catch (e) {
-    console.error("Error in onSliderChange:", e);
-  }
+function startSimulation() {
+  runLiveSimulation(true);
 }
 
 function resetSimulation() {
-  if (simAnimationTimer) {
-    clearInterval(simAnimationTimer);
-    simAnimationTimer = null;
-    isSimulationRunning = false;
-  }
   const sliderS = document.getElementById('slider-eta-s');
   const sliderC = document.getElementById('slider-eta-c');
   const selectArch = document.getElementById('select-arch');
   const selectOpt = document.getElementById('select-opt');
-  const btnRunSim = document.getElementById('btn-run-sim');
+
   if (sliderS) sliderS.value = 0.05;
   if (sliderC) sliderC.value = 0.05;
-  if (selectArch) selectArch.value = "StandardMLP";
-  if (selectOpt) selectOpt.value = "AdamW";
-  if (btnRunSim) {
-    btnRunSim.classList.remove('simulating');
-    btnRunSim.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-      Start Simulation
-    `;
-  }
+  if (selectArch) selectArch.value = 'StandardMLP';
+  if (selectOpt) selectOpt.value = 'AdamW';
+
   onSliderChange();
 }
 
-// Load external JSON if possible
-async function loadAsyncArtifacts() {
-  try {
-    const resExp = await fetch('results/raw_data/experiments_results.json');
-    if (resExp.ok) {
-      EXPERIMENTAL_DATA = await resExp.json();
-      updateConditionView(currentConditionKey);
-      const preRaw = document.getElementById('pre-raw-json');
-      if (preRaw) preRaw.textContent = JSON.stringify(EXPERIMENTAL_DATA.metadata, null, 2) + "\n\n/* Successfully loaded raw experiment logs (30 seed runs across 6 conditions). */";
-    }
-  } catch (e) {
-    console.log("Using embedded data bundle.");
-  }
-
-  try {
-    const resStat = await fetch('results/raw_data/statistical_summary.json');
-    const preStats = document.getElementById('pre-stats-json');
-    if (resStat.ok) {
-      const stats = await resStat.json();
-      if (preStats) preStats.textContent = JSON.stringify(stats, null, 2);
-    } else {
-      if (preStats) preStats.textContent = JSON.stringify({
-        "Condition_A_Matched": { "mean_Delta": 49.4, "t_stat": 123.5, "p_value_paired": 2.58e-08 },
-        "Condition_B_Falsification": { "mean_Delta": -50.0, "p_value_paired": 0.0 },
-        "Welch_t_stat": 248.5,
-        "cohens_d": 157.17
-      }, null, 2);
-    }
-  } catch (e) {
-    const preStats = document.getElementById('pre-stats-json');
-    if (preStats) preStats.textContent = JSON.stringify({
-      "Condition_A_Matched": { "mean_Delta": 49.4, "t_stat": 123.5, "p_value_paired": 2.58e-08 },
-      "Condition_B_Falsification": { "mean_Delta": -50.0, "p_value_paired": 0.0 },
-      "Welch_t_stat": 248.5,
-      "cohens_d": 157.17
-    }, null, 2);
-  }
-}
-
-// Expose all functions to global window scope immediately
-window.startSimulation = startSimulation;
-window.runLiveSimulation = runLiveSimulation;
-window.resetSimulation = resetSimulation;
-window.onSliderChange = onSliderChange;
-window.switchCondition = switchCondition;
-window.switchSeed = switchSeed;
-window.updateConditionView = updateConditionView;
-window.drawSyntheticManifolds = drawSyntheticManifolds;
-
-function initApp() {
-  try {
-    initResultsChart();
-  } catch (e) {
-    console.error("Error initializing results chart:", e);
-  }
-
-  try {
-    initSimChart();
-  } catch (e) {
-    console.error("Error initializing sim chart:", e);
-  }
-
-  // Populate initial empirical view immediately
-  try {
-    updateConditionView('Condition_A');
-  } catch (e) {
-    console.error("Error updating initial condition view:", e);
-  }
-
-  // Initial draw and simulation run
-  onSliderChange();
-
-  // Add event listeners (compliments inline onclick attributes)
-  const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      e.preventDefault();
-      const cond = tab.getAttribute('data-condition');
-      switchCondition(cond);
-    });
-  });
-
-  const seedBtns = document.querySelectorAll('.seed-btn');
-  seedBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const seed = btn.getAttribute('data-seed');
-      switchSeed(seed);
-    });
-  });
-
-  const btnRunSim = document.getElementById('btn-run-sim');
-  if (btnRunSim) {
-    btnRunSim.addEventListener('click', (e) => {
-      e.preventDefault();
-      startSimulation();
-    });
-  }
-
-  const btnResetSim = document.getElementById('btn-reset-sim');
-  if (btnResetSim) {
-    btnResetSim.addEventListener('click', (e) => {
-      e.preventDefault();
-      resetSimulation();
-    });
-  }
-
-  // Inspector Tabs
-  const inspTabs = document.querySelectorAll('.insp-tab-btn');
-  inspTabs.forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      e.preventDefault();
-      inspTabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const targetId = 'pane-' + tab.getAttribute('data-insp');
-      document.querySelectorAll('.insp-pane').forEach(p => p.classList.remove('active'));
-      const targetPane = document.getElementById(targetId);
-      if (targetPane) targetPane.classList.add('active');
-    });
-  });
-
-  // Dynamic Navigation Scroll-Spy & Smooth Navigation Transitions
+/**
+ * Smooth Navigation Glider & Fluid ScrollSpy Engine
+ */
+function initNavigation() {
+  const navContainer = document.getElementById('main-nav-links');
+  const glider = document.getElementById('nav-glider');
   const navLinks = document.querySelectorAll('.nav-link');
-  const scrollSections = [
-    document.getElementById('abstract'),
-    document.getElementById('hypotheses'),
-    document.getElementById('simulator'),
-    document.getElementById('empirical-results'),
-    document.getElementById('architecture'),
-    document.getElementById('falsification')
-  ].filter(Boolean);
+  if (!navContainer || !glider || !navLinks.length) return;
 
-  function updateActiveNav() {
-    const scrollY = window.scrollY || window.pageYOffset;
-    let currentId = 'abstract';
+  const sectionIds = Array.from(navLinks).map(link => link.getAttribute('href').substring(1));
+  const sections = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
 
-    for (let i = 0; i < scrollSections.length; i++) {
-      const sec = scrollSections[i];
-      const top = sec.offsetTop - 130;
-      if (scrollY >= top) {
-        currentId = sec.id;
-      }
+  function positionGlider(link) {
+    if (!link) {
+      glider.style.opacity = '0';
+      return;
     }
+    const containerRect = navContainer.getBoundingClientRect();
+    const linkRect = link.getBoundingClientRect();
+    const offsetLeft = linkRect.left - containerRect.left;
+    const width = linkRect.width;
 
-    navLinks.forEach(link => {
-      const href = link.getAttribute('href');
-      if (href === '#' + currentId) {
-        link.classList.add('active');
-      } else {
-        link.classList.remove('active');
-      }
-    });
+    glider.style.width = `${width}px`;
+    glider.style.transform = `translateX(${offsetLeft}px)`;
+    glider.style.opacity = '1';
   }
 
-  window.addEventListener('scroll', updateActiveNav, { passive: true });
-  updateActiveNav();
+  function setActiveLink(link) {
+    if (!link) return;
+    navLinks.forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+    positionGlider(link);
+  }
 
-  // Smooth Glide Scroll for All On-Page Anchors
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-      const targetId = this.getAttribute('href');
-      if (!targetId || targetId === '#') return;
+  // Smooth click navigation
+  navLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetId = link.getAttribute('href');
       const targetEl = document.querySelector(targetId);
       if (targetEl) {
-        e.preventDefault();
-        const headerOffset = 76;
-        const elementPosition = targetEl.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+        setActiveLink(link);
+
+        const headerHeight = document.querySelector('.site-header')?.offsetHeight || 65;
+        const targetPosition = targetEl.getBoundingClientRect().top + window.pageYOffset - headerHeight + 2;
 
         window.scrollTo({
-          top: offsetPosition,
+          top: targetPosition,
           behavior: 'smooth'
         });
 
-        // Soft highlight and focus animation on destination section
-        targetEl.classList.remove('section-target-highlight');
-        void targetEl.offsetWidth; // trigger reflow
-        targetEl.classList.add('section-target-highlight');
-        setTimeout(() => {
-          targetEl.classList.remove('section-target-highlight');
-        }, 1300);
-
-        if (this.classList.contains('nav-link')) {
-          navLinks.forEach(l => l.classList.remove('active'));
-          this.classList.add('active');
+        if (history.pushState) {
+          history.pushState(null, null, targetId);
         }
       }
     });
   });
 
-  // Smooth Section Reveal Observer
-  const revealSections = document.querySelectorAll('.section-reveal');
-  // Immediately reveal sections currently in the viewport
-  revealSections.forEach(sec => {
-    const rect = sec.getBoundingClientRect();
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      sec.classList.add('revealed');
+  // Smooth ScrollSpy tracking active section
+  let isTicking = false;
+  function updateScrollSpy() {
+    const scrollPos = window.pageYOffset;
+    const headerHeight = document.querySelector('.site-header')?.offsetHeight || 65;
+    const triggerOffset = headerHeight + 100;
+
+    let activeId = '';
+    for (let i = sections.length - 1; i >= 0; i--) {
+      const sec = sections[i];
+      if (scrollPos >= sec.offsetTop - triggerOffset) {
+        activeId = sec.id;
+        break;
+      }
     }
-  });
 
-  if ('IntersectionObserver' in window) {
-    const revealObserver = new IntersectionObserver((entries, observer) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('revealed');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, {
-      root: null,
-      threshold: 0.08,
-      rootMargin: '0px 0px -30px 0px'
-    });
+    if (!activeId && sections.length > 0) {
+      activeId = sections[0].id;
+    }
 
-    revealSections.forEach(sec => {
-      if (!sec.classList.contains('revealed')) {
-        revealObserver.observe(sec);
-      }
-    });
-  } else {
-    revealSections.forEach(sec => sec.classList.add('revealed'));
+    const currentActiveLink = document.querySelector(`.nav-link[href="#${activeId}"]`);
+    if (currentActiveLink && !currentActiveLink.classList.contains('active')) {
+      setActiveLink(currentActiveLink);
+    }
   }
 
-  loadAsyncArtifacts();
+  window.addEventListener('scroll', () => {
+    if (!isTicking) {
+      window.requestAnimationFrame(() => {
+        updateScrollSpy();
+        isTicking = false;
+      });
+      isTicking = true;
+    }
+  }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    const active = document.querySelector('.nav-link.active') || navLinks[0];
+    positionGlider(active);
+  });
+
+  // Initial positioning after layout
+  setTimeout(() => {
+    const active = document.querySelector('.nav-link.active') || navLinks[0];
+    positionGlider(active);
+  }, 120);
 }
 
-// Ensure initApp runs reliably whether readyState is loading, interactive, or complete
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
+/**
+ * Scroll Reveal Animation Observer
+ */
+function initScrollObserver() {
+  const sections = document.querySelectorAll('.section-reveal');
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('revealed');
+        obs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  sections.forEach(sec => observer.observe(sec));
 }
+
+/**
+ * DOM Ready Bootstrap
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  initNavigation();
+  initResultsChart();
+  initSimChart();
+  initInspectorTabs();
+  initScrollObserver();
+
+  drawSubspaceS();
+  drawSubspaceC();
+  runLiveSimulation(false);
+
+  // Load primary corrected protocol by default
+  loadProtocolData('corrected').then(() => {
+    updateConditionView('Condition_A');
+    updateInspectorViews();
+    updateGalleryImages();
+  });
+});
