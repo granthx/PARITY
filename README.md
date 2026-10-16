@@ -40,9 +40,7 @@
 10. [Security Measures & Experimental Integrity](#9-security-measures--experimental-integrity)
 11. [Threats to Validity & Limitations](#10-threats-to-validity--limitations)
 12. [Conclusion](#11-conclusion)
-13. [Setup & Reproducibility Guide](#12-setup--reproducibility-guide)
-14. [Submission Protocol Checklist](#13-submission-protocol-checklist)
-15. [References](#14-references)
+13. [References](#12-references)
 
 ---
 
