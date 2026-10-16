@@ -46,8 +46,7 @@
 10. [Security Measures & Experimental Integrity](#9-security-measures--experimental-integrity)
 11. [Threats to Validity & Limitations](#10-threats-to-validity--limitations)
 12. [Conclusion](#11-conclusion)
-13. [Setup & Reproducibility Guide](#12-setup--reproducibility-guide)
-14. [References](#13-references)
+13. [References](#13-references)
 
 ---
 
@@ -417,51 +416,13 @@ This study challenged the claim that neural networks unconditionally prefer simp
 
 ---
 
-## 12. Setup & Reproducibility Guide
+## 12. References
 
-### Prerequisites
-* Python 3.10+ (Tested on Python 3.13)
-* Dependencies: `torch`, `scikit-learn`, `scipy`, `numpy`, `matplotlib`, `pytest`
-
-### Quick Reproduction Pipeline
-
-All experiment scripts run deterministically on standard CPU hardware in under 2 minutes:
-
-```bash
-# 1. Run complete unit and statistical regression test suite (18 tests)
-python -m pytest tests/ -v
-
-# 2. Run the complete multi-condition, multi-seed experimental suite (Conditions A - E2)
-python src/run_experiments.py
-
-# 3. Recompute statistical hypothesis tests and regenerate all publication figures
-python src/analyze.py --protocol corrected
-python src/analyze.py --protocol historical
-```
-
-* **Raw Data Artifacts:** Primary corrected outputs stored in `results/raw_data/corrected_protocol/experiments_results_corrected.json` and `results/raw_data/corrected_protocol/statistical_summary_corrected.json` (historical run preserved in `results/raw_data/historical_run/`).
-* **Publication Figures:** Saved in `results/figures/fig1_learning_dynamics_matched.png` through `fig5_statistical_summary.png`.
-* **Protocol Documentation:** Protocol specifications and historical comparisons documented in the [Google Docs Research Paper](https://docs.google.com/document/d/1wpl74tR3uBP65dPv9ZUCTsIwiai8wPOhO1ewUJ3qwnU/edit?usp=sharing) and detailed in [Section 4](#4-system-architecture--experimental-design).
-
----
-
-## 13. References
-
-1. **Shah, H., Tamuly, K., Raghunathan, A., Jain, P., & Netrapalli, P.** (2020). *The Pitfalls of Simplicity Bias in Neural Networks*. Advances in Neural Information Processing Systems (NeurIPS 2020), 33, 9573–9585.
-2. **Morwani, D., Batra, J., Jain, P., & Netrapalli, P.** (2023). *Simplicity Bias in 1-Hidden Layer Neural Networks*. Advances in Neural Information Processing Systems (NeurIPS 2023), 36.
-3. **Pezeshki, M., Kaba, S. O., Bengio, Y., Courville, A., Precup, D., & Lajoie, G.** (2021). *Gradient Starvation: A Serious Shortcut in Linear Classifiers*. International Conference on Learning Representations (ICLR 2021).
-4. **Hermann, K. L., & Lampinen, A. K.** (2020). *What Shapes the Feature Bias of Neural Networks?* Advances in Neural Information Processing Systems (NeurIPS 2020), 33, 9995–10006.
-5. **Scimeca, L., Oh, S. J., Chun, S., Poli, M., & Yun, S.** (2022). *Which Shortcut Does Your Model Learn? Disentangling Shortcut Bias in Deep Neural Networks*. Advances in Neural Information Processing Systems (NeurIPS 2022), 35, 13204–13218.
-6. **Geirhos, R., Jacobsen, J. H., Michaelis, C., Zemel, R., Brendel, W., Bethge, M., & Wichmann, F. A.** (2020). *Shortcut Learning in Deep Neural Networks*. Nature Machine Intelligence, 2(11), 665–673.
-7. **Sagawa, S., Koh, P. W., Hashimoto, T. B., & Liang, P.** (2020). *Distributionally Robust Neural Networks for Group Shifts: On the Importance of Regularization for Worst-Case Generalization*. International Conference on Learning Representations (ICLR 2020).
-8. **Nagarajan, V., Andreassen, A., & Neyshabur, B.** (2021). *Understanding the Failure Modes of Out-of-Distribution Generalization*. International Conference on Learning Representations (ICLR 2021).
-9. **Rahaman, N., Baratin, A., Arpit, D., Draxler, F., Lin, M., Hamprecht, F., Bengio, Y., & Courville, A.** (2019). *On the Spectral Bias of Neural Networks*. International Conference on Machine Learning (ICML 2019), PMLR 97:5301–5310.
-10. **Xu, Z. Q. J., Zhang, Y., Tao, T., & Zhao, H.** (2020). *Frequency Principle: Fourier Analysis Sheds Light on Deep Neural Networks*. Communications in Computational Physics, 28(5), 1746–1767.
-11. **Kalimeris, D., Kaplun, G., Nakkiran, P., Edelman, B. L., Yang, T., Barak, B., & Chen, H.** (2019). *SGD on Neural Networks Learns Functions of Increasing Complexity*. Advances in Neural Information Processing Systems (NeurIPS 2019), 32.
-12. **Valle-Pérez, G., Camargo, C. Q., & Louis, A. A.** (2019). *Deep Learning Generalizes Because the Parameter-Function Map is Biased Towards Simple Functions*. International Conference on Learning Representations (ICLR 2019).
-13. **Soudry, D., Hoffer, E., Nacson, M. S., Gunasekar, S., & Srebro, N.** (2018). *The Implicit Bias of Gradient Descent on Separable Data*. Journal of Machine Learning Research (JMLR), 19(70), 1–57.
-14. **Arpit, D., Jastrzebski, S., Ballas, N., Krueger, D., Bengio, E., Kanwal, M. S., Maharaj, T., Fischer, A., Courville, A., Bengio, Y., & Lacoste-Julien, S.** (2017). *A Closer Look at Memorization in Deep Networks*. International Conference on Machine Learning (ICML 2017), PMLR 70:233–242.
-15. **Chatterji, N. S., & Long, P. M.** (2021). *When Does Gradient Descent Learn Features from Noisy Data?* Advances in Neural Information Processing Systems (NeurIPS 2021), 34:18511–18524.
-16. **Jacot, A., Gabriel, F., & Hongler, C.** (2018). *Neural Tangent Kernel: Convergence and Generalization in Neural Networks*. Advances in Neural Information Processing Systems (NeurIPS 2018), 31.
-17. **Fisher, A., Rudin, C., & Dominici, F.** (2019). *All Models are Wrong, but Many are Useful: Learning a Variable's Importance by Considering All Possible Models, Simultaneously*. Journal of Machine Learning Research (JMLR), 20(177), 1–81.
-18. **He, K., Zhang, X., Ren, S., & Sun, J.** (2016). *Deep Residual Learning for Image Recognition*. IEEE Conference on Computer Vision and Pattern Recognition (CVPR 2016), 770–778.
+1. Shah, H., Tamuly, K., Raghunathan, A., Jain, P., & Netrapalli, P. (2020). The Pitfalls of Simplicity Bias in Neural Networks. Advances in Neural Information Processing Systems (NeurIPS 2020), 33:9573–9585.
+2. Morwani, D., Batra, J., Jain, P., & Netrapalli, P. (2023). Simplicity Bias in 1-Hidden Layer Neural Networks. Advances in Neural Information Processing Systems (NeurIPS 2023), 36.
+3. Geirhos, R., Jacobsen, J. H., Michaelis, C., Zemel, R., Brendel, W., Bethge, M., & Wichmann, F. A. (2020). Shortcut Learning in Deep Neural Networks. Nature Machine Intelligence, 2(11):665–673.
+4. Rahaman, N., Baratin, A., Arpit, D., Draxler, F., Lin, M., Hamprecht, F., Bengio, Y., & Courville, A. (2019). On the Spectral Bias of Neural Networks. Proceedings of the 36th International Conference on Machine Learning (ICML 2019), PMLR 97:5301–5310.
+5. Soudry, D., Hoffer, E., Nacson, M. S., Gunasekar, S., & Srebro, N. (2018). The Implicit Bias of Gradient Descent on Separable Data. Journal of Machine Learning Research (JMLR), 19(70):1–57.
+6. Arpit, D., Jastrzebski, S., Ballas, N., Krueger, D., Bengio, E., Kanwal, M. S., Maharaj, T., Fischer, A., Courville, A., Bengio, Y., & Lacoste-Julien, S. (2017). A Closer Look at Memorization in Deep Networks. Proceedings of the 34th International Conference on Machine Learning (ICML 2017), PMLR 70:233–242.
+7. Jacot, A., Gabriel, F., & Hongler, C. (2018). Neural Tangent Kernel: Convergence and Generalization in Neural Networks. Advances in Neural Information Processing Systems (NeurIPS 2018), 31.
+8. He, K., Zhang, X., Ren, S., & Sun, J. (2016). Deep Residual Learning for Image Recognition. Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR 2016), 770–778.
