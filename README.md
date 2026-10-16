@@ -75,18 +75,18 @@ By isolating these variables into independent experimental knobs, we demonstrate
 
 ```mermaid
 graph TD
-    A[Inductive Biases in Neural Networks] --> B[Simplicity Bias in Representations]
-    A --> C[Spectral Bias in Optimization]
+    A["Inductive Biases in Neural Networks"] --> B["Simplicity Bias in Representations"]
+    A --> C["Spectral Bias in Optimization"]
     
     B --> D["Shah et al. (2020)<br/>The Pitfalls of Simplicity Bias"]
     B --> E["Morwani et al. (2023)<br/>Simplicity Bias in 1-HL Networks"]
     C --> F["Rahaman et al. (2019)<br/>Spectral Bias of Deep Networks"]
     
-    D -.-> G[Critique: Confounded Signal Strength]
-    E -.-> H[Critique: Low-Rank Projection Assumptions]
-    F -.-> I[Critique: Frequency != Structural Complexity]
+    D -.-> G["Critique: Confounded Signal Strength"]
+    E -.-> H["Critique: Low-Rank Projection Assumptions"]
+    F -.-> I["Critique: Frequency != Structural Complexity"]
     
-    G --> J[Our Work: The Falsification Challenge Suite]
+    G --> J["Our Work: The Falsification Challenge Suite"]
     H --> J
     I --> J
 ```
@@ -126,37 +126,37 @@ The research system consists of four modular components designed for reproducibi
 
 ```mermaid
 flowchart TD
-    subgraph DGP [Data Generating Process]
-        Z[Latent Target z in {-1, +1}]
-        Z --> |Flip noise eta_S| S[Linear Subspace x_S in R^2]
-        Z --> |Flip noise eta_C| C[XOR Subspace x_C in R^2]
-        N[Noise Subspace x_N in R^4]
-        S & C & N --> Concatenate[Standardized Input x in R^8]
+    subgraph DGP ["Data Generating Process"]
+        Z["Latent Target z in {-1, +1}"]
+        Z --> |Flip noise eta_S| S["Linear Subspace x_S in R^2"]
+        Z --> |Flip noise eta_C| C["XOR Subspace x_C in R^2"]
+        N["Noise Subspace x_N in R^4"]
+        S & C & N --> Concatenate["Standardized Input x in R^8"]
     end
 
-    subgraph Models [Neural Network Family]
-        Concatenate --> M1[StandardMLP: 2 Layers, 64-dim, ReLU]
-        Concatenate --> M2[DeepMLP: 4 Layers, 64-dim, ReLU]
-        Concatenate --> M3[ResMLP: Residual Skip Connections]
+    subgraph Models ["Neural Network Family"]
+        Concatenate --> M1["StandardMLP: 2 Layers, 64-dim, ReLU"]
+        Concatenate --> M2["DeepMLP: 4 Layers, 64-dim, ReLU"]
+        Concatenate --> M3["ResMLP: Residual Skip Connections"]
     end
 
-    subgraph Optimization [Optimization Regimes]
-        M1 & M2 & M3 --> Opt1[AdamW: lr=0.01, wd=1e-4]
-        M1 --> Opt2[SGD: lr=0.02, momentum=0.9]
+    subgraph Optimization ["Optimization Regimes"]
+        M1 & M2 & M3 --> Opt1["AdamW: lr=0.01, wd=1e-4"]
+        M1 --> Opt2["SGD: lr=0.02, momentum=0.9"]
     end
 
-    subgraph Evaluation [Counterfactual Intervention Engine]
-        Optimization --> JointEval[Joint Test Accuracy]
-        Optimization --> S_Eval["Counterfactual S-Only (C, N Permuted)"]
-        Optimization --> C_Eval["Counterfactual C-Only (S, N Permuted)"]
-        Optimization --> N_Eval["Noise Null Control (S, C Permuted)"]
+    subgraph Evaluation ["Counterfactual Intervention Engine"]
+        Opt1 & Opt2 --> JointEval["Joint Test Accuracy"]
+        Opt1 & Opt2 --> S_Eval["Counterfactual S-Only (C, N Permuted)"]
+        Opt1 & Opt2 --> C_Eval["Counterfactual C-Only (S, N Permuted)"]
+        Opt1 & Opt2 --> N_Eval["Noise Null Control (S, C Permuted)"]
     end
 
-    subgraph Metrics [Falsification Metrics]
-        S_Eval --> TS[Time-to-Threshold T_S]
-        C_Eval --> TC[Time-to-Threshold T_C]
+    subgraph Metrics ["Falsification Metrics"]
+        S_Eval --> TS["Time-to-Threshold T_S"]
+        C_Eval --> TC["Time-to-Threshold T_C"]
         TS & TC --> Delta["Delta = T_C - T_S"]
-        Delta --> StatTest[Paired t-test, Welch's t-test, Cohen's d]
+        Delta --> StatTest["Paired t-test, Welch's t-test, Cohen's d"]
     end
 ```
 
@@ -336,16 +336,16 @@ In accordance with Card 02 of the submission protocol, the following security an
 
 ```mermaid
 graph TD
-    S1[Security & Experimental Integrity]
-    S1 --> S2[Deterministic Reproducibility]
-    S1 --> S3[Data Leakage Prevention]
-    S1 --> S4[Anti-Hallucination Logging]
-    S1 --> S5[Resource & DoS Protection]
+    S1["Security & Experimental Integrity"]
+    S1 --> S2["Deterministic Reproducibility"]
+    S1 --> S3["Data Leakage Prevention"]
+    S1 --> S4["Anti-Hallucination Logging"]
+    S1 --> S5["Resource & DoS Protection"]
 
-    S2 --- D1[Fixed random seeds locked for PyTorch, NumPy, and Scipy]
-    S3 --- D2[Strict split isolation: Z-score fitted only on training set]
-    S4 --- D3[Raw JSON logs stored with timestamped metrics before visualization]
-    S5 --- D4[Capped epoch budgets and memory-bounded DataLoader batching]
+    S2 --- D1["Fixed random seeds locked for PyTorch, NumPy, and Scipy"]
+    S3 --- D2["Strict split isolation: Z-score fitted only on training set"]
+    S4 --- D3["Raw JSON logs stored with timestamped metrics before visualization"]
+    S5 --- D4["Capped epoch budgets and memory-bounded DataLoader batching"]
 ```
 
 1. **Deterministic Pseudo-Random Locking:**  
